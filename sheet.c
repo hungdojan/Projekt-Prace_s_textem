@@ -10,14 +10,15 @@ char temp[MAX_INPUT_LENGTH]; // slouzi k ulozeni posledniho nacteneho radku
 
 /* ---- Pomocne funkce ----- */
 
-int indexof(char *line, char c, int start_index, int position);
-void ignore_lines(int length, char *line);
-int get_column_count(char *line, char delim);
-void load_line(char *line);
-void push_line(char *line);
+int indexof(char *str_in, char c, int start_index, int position);
+void ignore_lines(int length, char *str_in);
+int get_column_count(char *str_in, char delim);
+void load_line(char *str_in);
+void push_line(char *str_in);
 void create_newline(char delim, int column_count, bool newline);
 void insert_str(char *str_in, int start_index, char *str_insert, char *str_out);
 void substring(char *str_in, int start_index, int len, char *str_out);
+void get_string_in_cell(char *str_in, int column, char delim, int column_count, char *str_out);
 int last_index(char *str);
 
 /* ---- Uprava tabulky ----- */
@@ -43,28 +44,21 @@ int main(int argc, char *argv[])
     int column_count = 3;
     (void)column_count;
     (void)delim;
-    // arow(delim, column_count);
-    // drows(5, 7);
-    // char str1[MAX_INPUT_LENGTH] = "Hello world!";
-    // char *ins_char = ",";
-    // insert_str(str1, ",", 5);
-    // printf("%s\n", str1);
-    icol(4, delim, column_count);
     return 0;
 }
 
 /** 
  * Tato funkce prohledava retezec a 
  * hleda index znaku
- * @param line retezec jednoho radku
+ * @param str_in retezec jednoho radku
  * @param c hledany znak
  * @param start_index pocatecni index, od ktereho ma funkce zacit hledat
  * @param position cislo udava, kolikaty znak v retezci ma hledat
  * @return vraci index hledaneho znaku v retezci
 */
-int indexof(char *line, char c, int start_index, int position)
+int indexof(char *str_in, char c, int start_index, int position)
 {
-    if (start_index >= (int)strlen(line))
+    if (start_index >= (int)strlen(str_in))
     {
         printf("Error: index out of bound!\n");
         return EXCEPTION_OUT_OF_BOUND;
@@ -72,9 +66,9 @@ int indexof(char *line, char c, int start_index, int position)
 
     int i = start_index;
     int count = 0;
-    for (; i < (int)strlen(line); i++)
+    for (; i < (int)strlen(str_in); i++)
     {
-        if (line[i] == c)
+        if (str_in[i] == c)
         {
             if (++count == position)
                 return i;
@@ -86,31 +80,32 @@ int indexof(char *line, char c, int start_index, int position)
 /** 
  * Tato funkce jenom prekopiruje radek do dalsiho souboru
  * @param length pocet radku, ktere ma precist a vypsat
+ * @param str_in retezec 
  * @return vraci posledni radek, ktery se nevytisknul
 */
-void ignore_lines(int length, char *line)
+void ignore_lines(int length, char *str_in)
 {
     int i;
-    for (i = 0; fgets(line, MAX_INPUT_LENGTH, stdin) != NULL && i < length; i++)
+    for (i = 0; fgets(str_in, MAX_INPUT_LENGTH, stdin) != NULL && i < length; i++)
     {
-        fputs(line, stdout);
+        fputs(str_in, stdout);
     }
 }
 
 /**
  * Spocita, kolik je v retezci oddelovacu
  * a vraci pocet sloupcu
- * @param line retezec radku
+ * @param str_in retezec radku
  * @param delim znak oddelovace
  * @return pocet sloupcu
 */
-int get_column_count(char *line, char delim)
+int get_column_count(char *str_in, char delim)
 {
     int i;
     int delim_count;
-    for (i = 0; i < (int)strlen(line); i++)
+    for (i = 0; i < (int)strlen(str_in); i++)
     {
-        if (line[i] == delim)
+        if (str_in[i] == delim)
             delim_count++;
     }
     return delim_count + 1;
@@ -118,20 +113,20 @@ int get_column_count(char *line, char delim)
 
 /**
  * Nacte do retezce line nasledujici radek ze souboru
- * @param line retezec
+ * @param str_in retezec
 */
-void load_line(char *line)
+void load_line(char *str_in)
 {
-    fgets(line, MAX_INPUT_LENGTH, stdin);
+    fgets(str_in, MAX_INPUT_LENGTH, stdin);
 }
 
 /**
  * Vypise retezec do souboru
- * @param line retezec 
+ * @param str_in retezec 
 */
-void push_line(char *line)
+void push_line(char *str_in)
 {
-    fputs(line, stdout);
+    fputs(str_in, stdout);
 }
 
 /** 
@@ -181,6 +176,44 @@ void substring(char *str_in, int start_index, int len, char *str_out)
 
     // prirazeni k vyslednemu retezci
     strcpy(str_out, loc_str);
+}
+
+/** 
+ * Funkce vraci obsah bunky na radku v tabulkovem souboru
+ * @param str_in retezec radku
+ * @param column poradi sloupce v radku
+ * @param delim znak oddelovace
+ * @param column_count pocet sloupcu na radku
+ * @param str_out vysledny retezec
+*/
+void get_string_in_cell(char *str_in, int column, char delim, int column_count, char *str_out)
+{
+    // kontrola preteceni
+    if (column <= 0 || column > column_count)
+    {
+        printf("Error: column out of bound!\n");
+        return;
+    }
+
+    int start_cell = 0;     // index prvniho znaku v bunce
+    // index poslednuho znaku v bunce; ignoruje se znak '\n'
+    int end_cell = str_in[last_index(str_in)] == '\n' ? last_index(str_in) - 1 : last_index(str_in);
+    int length;             // delka retezce v bunce
+
+    if (column == 1)        // pokud uzivatel chce obsah prvniho sloupcu
+        end_cell = indexof(str_in, delim, 0, column) - 1;
+
+    else if (column == column_count)    // pokud uzivatel chce obsah posledniho sloupce
+        start_cell = indexof(str_in, delim, 0, column - 1) + 1;
+
+    else
+    {
+        start_cell = indexof(str_in, delim, 0, column - 1) + 1;
+        end_cell = indexof(str_in, delim, 0, column) - 1;
+    }
+
+    length = end_cell - start_cell + 1;
+    substring(str_in, start_cell, length, str_out);
 }
 
 /**
@@ -289,19 +322,19 @@ void drows(int starting_row, int ending_row)
 */
 void icol(int column, char delim, int column_count)
 {
-    char str_insert[2];         /* retezec oddelovace */
+    char str_insert[2]; /* retezec oddelovace */
     str_insert[0] = delim;
     str_insert[1] = '\0';
 
     while (fgets(temp, MAX_INPUT_LENGTH, stdin) != NULL)
     {
-        if (column == 1)        // pokud chce uzivatel pridat novy sloupec pred prvni
+        if (column == 1) // pokud chce uzivatel pridat novy sloupec pred prvni
             insert_str(temp, 0, str_insert, temp);
-        else if (column == column_count + 1)    // pokud chce uzivatel pridat sloupec za posledni sloupec
+        else if (column == column_count + 1) // pokud chce uzivatel pridat sloupec za posledni sloupec
             insert_str(temp, last_index(temp) + 1, str_insert, temp);
         else
         {
-            int starting_index = indexof(temp, delim, 0, column - 1) + 1;   /* zacatek nove bunky */
+            int starting_index = indexof(temp, delim, 0, column - 1) + 1; /* zacatek nove bunky */
             insert_str(temp, starting_index, str_insert, temp);
         }
         push_line(temp);
