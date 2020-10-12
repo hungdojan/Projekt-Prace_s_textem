@@ -12,7 +12,7 @@ char temp[MAX_INPUT_LENGTH]; // slouzi k ulozeni posledniho nacteneho radku
 
 int indexof(char *str_in, char c, int start_index, int position);
 void ignore_lines(int length, char *str_in);
-int get_column_count(char *str_in, char delim);
+int get_char_count(char *str_in, char c);
 void load_line(char *str_in);
 void push_line(char *str_in);
 void create_newline(char delim, int column_count, bool newline);
@@ -113,7 +113,7 @@ void ignore_lines(int length, char *str_in)
  * @param delim znak oddelovace
  * @return pocet sloupcu
 */
-int get_column_count(char *str_in, char delim)
+int get_char_count(char *str_in, char delim)
 {
     int i;
     int delim_count = 0;
