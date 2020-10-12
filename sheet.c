@@ -108,21 +108,21 @@ void ignore_lines(int length, char *str_in)
 }
 
 /**
- * Spocita, kolik je v retezci oddelovacu a vraci pocet sloupcu.
+ * Spocita, kolik je v retezci znaku c.
  * @param str_in vstupni retezec
- * @param delim znak oddelovace
+ * @param c hledany znak
  * @return pocet sloupcu
 */
-int get_char_count(char *str_in, char delim)
+int get_char_count(char *str_in, char c)
 {
     int i;
-    int delim_count = 0;
+    int char_count = 0;
     for (i = 0; i < (int)strlen(str_in); i++)
     {
-        if (str_in[i] == delim)
-            delim_count++;
+        if (str_in[i] == c)
+            char_count++;
     }
-    return delim_count + 1;
+    return char_count;
 }
 
 /**
