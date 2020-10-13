@@ -20,6 +20,7 @@ void push_line(char *str_in);
 void create_newline(char delim, int column_count, bool newline);
 void insert_str(char *str_in, int start_index, char *str_to_insert, char *str_out);
 void remove_str(char *str_in, int start_index, int length, char *str_out);
+void replace_str(char *str_in, int start_index, int length, char *str_replacing, char *str_out);
 void substring(char *str_in, int start_index, int len, char *str_out);
 void get_string_in_cell(char *str_in, int column, char delim, int column_count, char *str_out);
 int last_index(char *str);
@@ -47,7 +48,8 @@ int main(int argc, char *argv[])
     char *list_of_delims = ":|,;";
     char file_delim = ' ';
     char output_delim = ':';
-    
+    int column_count = 3;
+
     for (int i = 0; i < argc; i++)
     {
         if (!strcmp(argv[i], "-d") && argc >= i + 2)
@@ -56,11 +58,7 @@ int main(int argc, char *argv[])
             output_delim = list_of_delims[0];
         }
     }
-
-    load_line(temp);
-    file_delim = set_delim(temp, list_of_delims);
-
-    int column_count = 3;
+    
     (void)column_count;
     (void)file_delim;
     (void)output_delim;
@@ -73,7 +71,7 @@ int main(int argc, char *argv[])
  * @param c hledany znak
  * @param start_index pocatecni index, od ktereho ma funkce zacit hledat
  * @param position cislo udava, kolikaty znak v retezci ma hledat
- * @return vraci index hledaneho znaku v retezci
+ * @return vraci index hledaneho znaku v retezci (vraci -1 pokud nic nenasel)
 */
 int indexof(char *str_in, char c, int start_index, int position)
 {
@@ -152,7 +150,7 @@ char set_delim(char *str_in, char *list_of_delims)
     for (i = 0; i < (int)strlen(list_of_delims); i++)
     {
         int char_count = get_char_count(str_in, list_of_delims[i]);
-        if (char_count > 0) 
+        if (char_count > 0)
             return list_of_delims[i];
     }
     return DEFAULT_DELIM;
@@ -222,6 +220,20 @@ void remove_str(char *str_in, int start_index, int length, char *str_out)
     substring(str_in, start_index + length, (int)strlen(str_in) - (start_index + length), post_str);
 
     sprintf(str_out, "%s%s", pre_str, post_str); // sjednoceni retezcu a ulozeni do str_out
+}
+
+/** 
+ * Prepise cast retezce.
+ * @param str_in vstupni retezec
+ * @param start_index index prvniho znaku
+ * @param length delka retezce, ktery se ma odstranit
+ * @param str_replacing retezec, ktery bude pridan misto vybraneho retezce
+ * @param str_out vystupni retezec
+*/
+void replace_str(char *str_in, int start_index, int length, char *str_replacing, char *str_out)
+{
+    remove_str(str_in, start_index, length, str_in);
+    insert_str(str_in, start_index, str_replacing, str_out);
 }
 
 /**
@@ -302,7 +314,7 @@ void get_string_in_cell(char *str_in, int column, char delim, int column_count, 
 void insert_str(char *str_in, int start_index, char *str_to_insert, char *str_out)
 {
     // funkce nepocita '\n' za vysledny znak
-    if (str_in[last_index(str_in)] == '\n' && start_index > 0)
+    if (str_in[last_index(str_in)] == '\n' && start_index == last_index(str_in) - 1)
         start_index--;
 
     // pokud je start_index == len -> pridat dozadu (append)
@@ -406,8 +418,8 @@ void icol(int column, char delim, int column_count)
     {
         if (column == 1) // pokud chce uzivatel pridat novy sloupec pred prvni
             insert_str(temp, 0, str_to_insert, temp);
-        else if (column == column_count + 1) // pokud chce uzivatel pridat sloupec za posledni sloupec
-            insert_str(temp, last_index(temp) + 1, str_to_insert, temp);
+        else if (column > column_count) // pokud chce uzivatel pridat sloupec za posledni sloupec
+            insert_str(temp, last_index(temp), str_to_insert, temp);
         else
         {
             int starting_index = indexof(temp, delim, 0, column - 1) + 1; /* zacatek nove bunky */
