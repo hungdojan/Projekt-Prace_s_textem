@@ -34,6 +34,9 @@ int last_index(char *str);
 bool is_lower(char c);
 bool is_upper(char c);
 bool is_letter(char c);
+bool is_digit(char c);
+bool is_number(char *str_in);
+bool is_number_negative(char *str_in);
 
 /* ---- Uprava tabulky ----- */
 
@@ -65,7 +68,7 @@ int main(int argc, char *argv[])
     char *list_of_delims = ":|,;";
     char file_delim = ' ';
     char output_delim = ':';
-    int column_count = 3;
+    int column_count = 1;
 
     for (int i = 0; i < argc; i++)
     {
@@ -438,6 +441,65 @@ bool is_upper(char c)
 bool is_letter(char c)
 {
     return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
+}
+
+/** 
+ * Funkce zjisti, zda je dany znak cislice
+ * @param c znak, na ktery se ptame
+ * @return true pokud znak je cislice
+*/
+bool is_digit(char c)
+{
+    return c >= '0' && c <= '9';
+}
+
+/** 
+ * Funkce zjisti, zda je retezec cislo
+ * @param str_in vstupni retezec
+ * @return true pokud je retezec cislo
+*/
+bool is_number(char *str_in)
+{
+    bool is_negative = str_in[0] == '-';
+    bool is_float = false;
+    int i;
+    for (i = 0; i < (int)strlen(str_in); i++)
+    {
+        if (!is_digit(str_in[i]))
+        {
+            switch (str_in[i])
+            {
+            case '-':
+                // znamenko minus muze byt jen na prvnim miste
+                if (i != 0)
+                    return false;
+                else    // pro kontrolu dalsich znaku
+                    is_negative = true;
+                break;
+            case '.':
+                // desetinna carka nemuze byt na prvnim miste,
+                // nebo po znamenku minus, a muze byt v retezci jen jednou
+                if (i == 0 || (is_negative && i == 1) || is_float)
+                    return false;
+                is_float = !is_float;
+                break;
+            // ostatni znaky nejsou povolene
+            default:
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+/** 
+ * Funkce zjisti, jestli muze byt retezec zaporne cislo
+ * @param str_in vstupni retezec
+ * @return true pokud by retezec mohl byt cislo zaporne
+*/
+bool is_number_negative(char *str_in)
+{
+    return str_in[0] == '-';
 }
 
 /* ---------------------------------- */
