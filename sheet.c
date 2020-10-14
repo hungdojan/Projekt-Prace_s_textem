@@ -6,6 +6,8 @@
 #define EXCEPTION_OUT_OF_BOUND -2
 #define TILL_END __INT32_MAX__
 #define DEFAULT_DELIM ' '
+#define CONVERT_TO_UPPER ('A' - 'a')
+#define CONVERT_TO_LOWER ('a' - 'A')
 
 char temp[MAX_INPUT_LENGTH]; // slouzi k ulozeni posledniho nacteneho radku
 
@@ -29,6 +31,9 @@ void get_string_in_cell(char *str_in, int column,
 void get_cell_info(char *str_in, int column, char delim,
                    int column_count, int *start_index_out, int *len_out);
 int last_index(char *str);
+bool is_lower(char c);
+bool is_upper(char c);
+bool is_letter(char c);
 
 /* ---- Uprava tabulky ----- */
 
@@ -41,7 +46,12 @@ void dcol(int column, char delim, int column_count);
 
 /* ---- Zpracovavani dat --- */
 
-void cset(char *str_in, int column, char delim, int column_count, char *str_to_insert, char *str_out);
+void cset(char *str_in, int column, char delim, int column_count,
+          char *str_to_insert, char *str_out);
+void to_lower(char *str_in, int column, char delim,
+              int column_count, char *str_out);
+void to_upper(char *str_in, int column, char delim,
+              int column_count, char *str_out);
 
 /* ------------------------- */
 
@@ -68,10 +78,10 @@ int main(int argc, char *argv[])
 
     /**
      * For testing purposes
-    */ 
+    */
     while (fgets(temp, MAX_INPUT_LENGTH, stdin) != NULL)
     {
-        // code...       
+        // code...
         push_line(temp);
     }
 
@@ -400,6 +410,36 @@ int last_index(char *str)
     return (int)strlen(str) - 1;
 }
 
+/** 
+ * Funkce zjistuje, zda je zadany znak male pismeno
+ * @param c znak, na ktery se ptame
+ * @return true pokud znak je male pismeno
+*/
+bool is_lower(char c)
+{
+    return c >= 'a' && c <= 'z';
+}
+
+/** 
+ * Funkce zjistuje, zda je zadany znak velke pismeno
+ * @param c znak, na ktery se ptame
+ * @return true pokud znak je velke pismeno
+*/
+bool is_upper(char c)
+{
+    return c >= 'A' && c <= 'Z';
+}
+
+/** 
+ * Funkce zjistuje, zda je zadany znak pismeno
+ * @param c znak, na ktery se ptame
+ * @return true pokud znak je pismeno
+*/
+bool is_letter(char c)
+{
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
+}
+
 /* ---------------------------------- */
 
 /**
@@ -516,6 +556,49 @@ void cset(char *str_in, int column, char delim,
     int start_index, len;
     get_cell_info(str_in, column, delim, column_count, &start_index, &len);
     remove_str(str_in, start_index, len, str_in);
-    // get_cell_info(str_in, column, delim, column_count, &start_index, &len);
     insert_str(str_in, start_index, str_to_insert, str_out);
+}
+
+/** 
+ * Funkce prepise vsechna velka pismena v bunce na mala
+ * @param str_in vstupni retezec
+ * @param column poradi sloupce v radku (pocita se od 1)
+ * @param delim znak oddelovace
+ * @param column_count pocet sloupcu na radku
+ * @param str_out vystupni retezec
+*/
+void to_lower(char *str_in, int column, char delim, int column_count, char *str_out)
+{
+    int start_index, len;
+    get_cell_info(str_in, column, delim, column_count, &start_index, &len);
+    for (int i = start_index; i <= len + start_index; i++)
+    {
+        if (is_upper(str_in[i]))
+        {
+            str_in[i] += CONVERT_TO_LOWER;
+        }
+    }
+    strcpy(str_out, str_in);
+}
+
+/** 
+ * Funkce prepise vsechna mala pismena v bunce na velka
+ * @param str_in vstupni retezec
+ * @param column poradi sloupce v radku (pocita se od 1)
+ * @param delim znak oddelovace
+ * @param column_count pocet sloupcu na radku
+ * @param str_out vystupni retezec
+*/
+void to_upper(char *str_in, int column, char delim, int column_count, char *str_out)
+{
+    int start_index, len;
+    get_cell_info(str_in, column, delim, column_count, &start_index, &len);
+    for (int i = start_index; i <= len + start_index; i++)
+    {
+        if (is_lower(str_in[i]))
+        {
+            str_in[i] += CONVERT_TO_UPPER;
+        }
+    }
+    strcpy(str_out, str_in);
 }
