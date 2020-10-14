@@ -41,6 +41,8 @@ void dcol(int column, char delim, int column_count);
 
 /* ---- Zpracovavani dat --- */
 
+void cset(char *str_in, int column, char delim, int column_count, char *str_to_insert, char *str_out);
+
 /* ------------------------- */
 
 int main(int argc, char *argv[])
@@ -63,7 +65,16 @@ int main(int argc, char *argv[])
             output_delim = list_of_delims[0];
         }
     }
-    
+
+    /**
+     * For testing purposes
+    */ 
+    while (fgets(temp, MAX_INPUT_LENGTH, stdin) != NULL)
+    {
+        // code...       
+        push_line(temp);
+    }
+
     (void)column_count;
     (void)file_delim;
     (void)output_delim;
@@ -283,10 +294,6 @@ void substring(char *str_in, int start_index, int len, char *str_out)
 */
 void insert_str(char *str_in, int start_index, char *str_to_insert, char *str_out)
 {
-    // funkce nepocita '\n' za vysledny znak
-    if (str_in[last_index(str_in)] == '\n' && start_index == last_index(str_in) - 1)
-        start_index--;
-
     // pokud je start_index == len -> pridat dozadu (append)
     // pokud je start_index > len -> chyba preteceni -> vraci prazdny retezec
     if (start_index > (int)strlen(str_in))
@@ -323,7 +330,7 @@ void insert_str(char *str_in, int start_index, char *str_to_insert, char *str_ou
 /** 
  * Funkce vraci obsah bunky na radku v tabulkovem souboru. 
  * @param str_in vstupni retezec
- * @param column poradi sloupce v radku
+ * @param column poradi sloupce v radku (pocita se od 1)
  * @param delim znak oddelovace
  * @param column_count pocet sloupcu na radku
  * @param str_out vystupni retezec
@@ -347,7 +354,7 @@ void get_string_in_cell(char *str_in, int column, char delim,
  * Funkce ziskava dve informace o bunce v retezce: jeji pocatecni index 
  * a delka retezce v bunce.
  * @param str_in vstupni retezec
- * @param column poradi sloupce v radku
+ * @param column poradi sloupce v radku (pocita se od 1)
  * @param delim znak oddelovace
  * @param column_count pocet sloupcu
  * @param start_index_out vystupni parametr pro pocatecni index
@@ -469,7 +476,7 @@ void icol(int column, char delim, int column_count)
 /** 
  * Funkce odstranuje sloupec z radku. 
  * Funkce momentalne projizdi cely soubor.
- * @param column poradi sloupce v radku
+ * @param column poradi sloupce v radku (pocita se od 1)
  * @param delim znak oddelovace
  * @param column_count pocet sloupcu na radku
 */
@@ -486,7 +493,29 @@ void dcol(int column, char delim, int column_count)
             remove_str(temp, start_index - 1, len + 1, temp);
         else
             remove_str(temp, start_index, len + 1, temp);
-        
+
         push_line(temp);
     }
+}
+
+/* ------------------------------------------------------ */
+
+/** 
+ * Funkce do bunky column nastavi retezec str_in. 
+ * Promenna str_out slouzi jako vystupni retezec pro vytisknuti do souboru.
+ * @param str_in vstupni retezec
+ * @param column poradi sloupce v radku (pocita se od 1)
+ * @param delim znak oddelovace
+ * @param column_count pocet sloupcu na radku
+ * @param str_to_insert retezec, ktery bude nastaven v bunce
+ * @param str_out vystupni retezec
+*/
+void cset(char *str_in, int column, char delim,
+          int column_count, char *str_to_insert, char *str_out)
+{
+    int start_index, len;
+    get_cell_info(str_in, column, delim, column_count, &start_index, &len);
+    remove_str(str_in, start_index, len, str_in);
+    // get_cell_info(str_in, column, delim, column_count, &start_index, &len);
+    insert_str(str_in, start_index, str_to_insert, str_out);
 }
