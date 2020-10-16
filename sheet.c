@@ -1,13 +1,16 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
+#include <stdlib.h>
 
 #define MAX_INPUT_LENGTH 10241
 #define EXCEPTION_OUT_OF_BOUND -2
+#define EXCEPTION_NOT_A_NUMBER -2
 #define TILL_END __INT32_MAX__
 #define DEFAULT_DELIM ' '
 #define CONVERT_TO_UPPER ('A' - 'a')
 #define CONVERT_TO_LOWER ('a' - 'A')
+#define FLOATING_POINT_CHAR '.'
 
 char temp[MAX_INPUT_LENGTH]; // slouzi k ulozeni posledniho nacteneho radku
 
@@ -37,6 +40,7 @@ bool is_letter(char c);
 bool is_digit(char c);
 bool is_number(char *str_in);
 bool is_number_negative(char *str_in);
+int round_number(char *float_number);
 
 /* ---- Uprava tabulky ----- */
 
@@ -55,6 +59,10 @@ void to_lower(char *str_in, int column, char delim,
               int column_count, char *str_out);
 void to_upper(char *str_in, int column, char delim,
               int column_count, char *str_out);
+// int round_func(char *str_in, int column, char delim,
+//                int column_count, char *str_out);
+int int_func(char *str_in, int column, char delim,
+             int column_count, char *str_out);
 
 /* ------------------------- */
 
@@ -85,7 +93,11 @@ int main(int argc, char *argv[])
     while (fgets(temp, MAX_INPUT_LENGTH, stdin) != NULL)
     {
         // code...
+        // int number = round_number(temp);
+        // int_func(temp, 1, output_delim, column_count, temp);
+        round_number(temp);
         push_line(temp);
+        // printf("%d\n", number);
     }
 
     (void)column_count;
@@ -460,6 +472,8 @@ bool is_digit(char c)
 */
 bool is_number(char *str_in)
 {
+    if (strlen(str_in) == 0)
+        return false;
     bool is_negative = str_in[0] == '-';
     bool is_float = false;
     int i;
@@ -473,10 +487,10 @@ bool is_number(char *str_in)
                 // znamenko minus muze byt jen na prvnim miste
                 if (i != 0)
                     return false;
-                else    // pro kontrolu dalsich znaku
+                else // pro kontrolu dalsich znaku
                     is_negative = true;
                 break;
-            case '.':
+            case FLOATING_POINT_CHAR:
                 // desetinna carka nemuze byt na prvnim miste,
                 // nebo po znamenku minus, a muze byt v retezci jen jednou
                 if (i == 0 || (is_negative && i == 1) || is_float)
@@ -500,6 +514,18 @@ bool is_number(char *str_in)
 bool is_number_negative(char *str_in)
 {
     return str_in[0] == '-';
+}
+
+/** 
+ * TODO:
+*/
+int round_number(char *number)
+{
+    int int_number = atoi(number);
+    float float_number = atof(number);
+    if (float_number - int_number * 1.0 >= 0.5)
+        int_number++;
+    return int_number;
 }
 
 /* ---------------------------------- */
@@ -663,4 +689,52 @@ void to_upper(char *str_in, int column, char delim, int column_count, char *str_
         }
     }
     strcpy(str_out, str_in);
+}
+
+/** 
+ * 
+*/
+// int round_func(char *str_in, int column, char delim,
+//                int column_count, char *str_out)
+// {
+//     int start_index, len;
+//     get_cell_info(str_in, column, delim, column_count, &start_index, &len);
+
+//     char loc_str[MAX_INPUT_LENGTH];
+//     get_string_in_cell(str_in, column, delim, column_count, loc_str);
+//     if (!is_number(loc_str))
+//         return EXCEPTION_NOT_A_NUMBER;
+//     if (get_char_count(loc_str, FLOATING_POINT_CHAR) == 1)
+
+//         return 0;
+// }
+
+/** 
+ * Funkce prevede desetinne cislo na cele cislo a ulozi do bunky.
+ * @param str_in vstupni retezec
+ * @param column poradi sloupce v radku (pocita se od 1)
+ * @param delim znak oddelovace
+ * @param column_count pocet sloupcu na radku
+ * @param str_out vystupni retezec
+ * @return pokud nastane chyba tak vraci nenulove cislo
+*/
+int int_func(char *str_in, int column, char delim,
+             int column_count, char *str_out)
+{
+    // dostaneme prvni index a delku bunky
+    int start_index, len;
+    get_cell_info(str_in, column, delim, column_count, &start_index, &len);
+
+    // ulozeni obsahu bunky
+    char loc_str[MAX_INPUT_LENGTH];
+    get_string_in_cell(str_in, column, delim, column_count, loc_str);
+    
+    // pokud retezec neni cislo, tak to vyhodi chybovou hlasku
+    if (!is_number(loc_str))
+        return EXCEPTION_NOT_A_NUMBER;
+
+    // prevede cislo na retezec a vlozi ho do bunky
+    sprintf(loc_str, "%d", atoi(loc_str));
+    cset(str_in, column, delim, column_count, loc_str, str_out);
+    return 0;
 }
