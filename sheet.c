@@ -32,7 +32,7 @@ void substring(char *str_in, int start_index, int len, char *str_out);
 void get_string_in_cell(char *str_in, int column,
                         char delim, int column_count, char *str_out);
 void get_cell_info(char *str_in, int column, char delim,
-                   int column_count, int *start_index_out, int *len_out);
+                   int column_count, int *pstart_index_out, int *plen_out);
 int last_index(char *str);
 bool is_lower(char c);
 bool is_upper(char c);
@@ -63,6 +63,8 @@ int round_func(char *str_in, int column, char delim,
                int column_count, char *str_out);
 int int_func(char *str_in, int column, char delim,
              int column_count, char *str_out);
+void copy(char *str_in, int column_N, int column_M,
+          char delim, int column_count, char *str_out);
 
 /* ------------------------- */
 
@@ -76,7 +78,7 @@ int main(int argc, char *argv[])
     char *list_of_delims = ":|,;";
     char file_delim = ' ';
     char output_delim = ':';
-    int column_count = 1;
+    int column_count = 3;
 
     for (int i = 0; i < argc; i++)
     {
@@ -378,11 +380,11 @@ void get_string_in_cell(char *str_in, int column, char delim,
  * @param column poradi sloupce v radku (pocita se od 1)
  * @param delim znak oddelovace
  * @param column_count pocet sloupcu
- * @param start_index_out vystupni parametr pro pocatecni index
- * @param len_out vystupni delka retezce
+ * @param pstart_index_out vystupni parametr pro pocatecni index
+ * @param plen_out vystupni delka retezce
 */
 void get_cell_info(char *str_in, int column, char delim,
-                   int column_count, int *start_index_out, int *len_out)
+                   int column_count, int *pstart_index_out, int *plen_out)
 {
     // kontrola preteceni
     if (column <= 0 || column > column_count)
@@ -393,9 +395,9 @@ void get_cell_info(char *str_in, int column, char delim,
 
     // pocatecni index je prvni index po prvnim oddelovaci
     // vyjimku tvori prvni sloupec, ktery nema pred sebou oddelovac
-    *start_index_out = indexof(str_in, delim, 0, column - 1);
+    *pstart_index_out = indexof(str_in, delim, 0, column - 1);
     if (column != 1)
-        (*start_index_out)++;
+        (*pstart_index_out)++;
 
     /** 
      * delka se urcuje jako rozdil indexu zadniho oddelovace
@@ -404,11 +406,11 @@ void get_cell_info(char *str_in, int column, char delim,
      * u posledniho sloupce se provadi kontrola na znak '\n'
     */
     if (column < column_count)
-        *len_out = indexof(str_in, delim, 0, column) - *start_index_out;
+        *plen_out = indexof(str_in, delim, 0, column) - *pstart_index_out;
     else if (str_in[last_index(str_in)] == '\n')
-        *len_out = (int)strlen(str_in) - *start_index_out - 1;
+        *plen_out = (int)strlen(str_in) - *pstart_index_out - 1;
     else
-        *len_out = (int)strlen(str_in) - *start_index_out;
+        *plen_out = (int)strlen(str_in) - *pstart_index_out;
 }
 
 /** 
@@ -763,4 +765,28 @@ int int_func(char *str_in, int column, char delim,
     sprintf(loc_str, "%d", atoi(loc_str));
     cset(str_in, column, delim, column_count, loc_str, str_out);
     return 0;
+}
+
+/** 
+ * Funkce prepise obsah bunky ve column_M hodnotami ze column_N.
+ * @param str_in vstupni retezec
+ * @param column_N sloupec, ze ktereho se kopiruje
+ * @param column_M sloupec, do ktereho se kopiruje
+ * @param delim znak oddelovace
+ * @param column_count pocet sloupcu na radku
+ * @param str_out vystupni retezec
+*/
+void copy(char *str_in, int column_N, int column_M,
+          char delim, int column_count, char *str_out)
+{
+    char temp_str[MAX_INPUT_LENGTH];
+    // dostaneme prvni index a delku bunky
+    int start_index, len;
+    get_cell_info(str_in, column_N, delim, column_count, &start_index, &len);
+
+    // ulozeni hodnoty ve sloupci N
+    get_string_in_cell(str_in, column_N, delim, column_count, temp_str);
+
+    // nastavime novou hodnotu do bunky M
+    cset(str_in, column_M, delim, column_count, temp_str, str_out);
 }
