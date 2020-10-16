@@ -41,6 +41,7 @@ bool is_digit(char c);
 bool is_number(char *str_in);
 bool is_number_negative(char *str_in);
 int round_number(char *float_number);
+bool is_in_range(int number, int lower_bound, int upper_bound);
 
 /* ---- Uprava tabulky ----- */
 
@@ -70,6 +71,13 @@ void swap(char *str_in, int column_N, int column_M,
 void move(char *str_in, int column_N, int column_M,
           char delim, int column_count, char *str_out);
 
+/* ---- Selekce radku ------ */
+
+bool begins_with(char *str_in, int column, char delim,
+                 int column_count, char *str_to_cmp);
+bool contains(char *str_in, int column, char delim,
+              int column_count, char *str_to_cmp);
+
 /* ------------------------- */
 
 int main(int argc, char *argv[])
@@ -82,7 +90,7 @@ int main(int argc, char *argv[])
     char *list_of_delims = ":|,;";
     char file_delim = ' ';
     char output_delim = ':';
-    int column_count = 5;
+    int column_count = 1;
 
     for (int i = 0; i < argc; i++)
     {
@@ -98,8 +106,15 @@ int main(int argc, char *argv[])
     */
     while (fgets(temp, MAX_INPUT_LENGTH, stdin) != NULL)
     {
+        bool is_true = begins_with(temp, 1, output_delim, column_count, "abc");
         // code...
-        push_line(temp);
+
+        // push_line(temp);
+        printf("%s", temp);
+        if (is_true)
+            printf("abc: true\n");
+        else
+            printf("abc: false\n");
     }
 
     (void)column_count;
@@ -531,6 +546,17 @@ int round_number(char *number)
     return int_number;
 }
 
+/** 
+ * Funkce kontroluje, zda cislo number lezi v intervalu
+ * @param number cislo, na ktere se ptame
+ * @param lower_bound nejnizsi cislo intervalu
+ * @param upper_bound nejvyssi cislo intervalu
+*/
+bool is_in_range(int number, int lower_bound, int upper_bound)
+{
+    return number >= lower_bound && number <= upper_bound;
+}
+
 /* ---------------------------------- */
 
 /**
@@ -784,9 +810,6 @@ void copy(char *str_in, int column_N, int column_M,
           char delim, int column_count, char *str_out)
 {
     char temp_str[MAX_INPUT_LENGTH];
-    // ulozeni prvniho indexu a delky retezce bunky
-    int start_index, len;
-    get_cell_info(str_in, column_N, delim, column_count, &start_index, &len);
 
     // nacteni hodnoty ve sloupci N
     get_string_in_cell(str_in, column_N, delim, column_count, temp_str);
@@ -809,16 +832,11 @@ void swap(char *str_in, int column_N, int column_M,
 {
     char temp_str_M[MAX_INPUT_LENGTH];
     char temp_str_N[MAX_INPUT_LENGTH];
-    int start_M, len_M, start_N, len_N;
 
-    // ulozeni prvniho indexu a delky retezce bunky ve sloupci M
     // nacteni hodnoty ve sloupci M do temp_str_M
-    get_cell_info(str_in, column_M, delim, column_count, &start_M, &len_M);
     get_string_in_cell(str_in, column_M, delim, column_count, temp_str_M);
 
-    // ulozeni prvniho indexu a delky retezce bunky ve sloupci N
     // nacteni hodnoty ve sloupci N do temp_str_N
-    get_cell_info(str_in, column_N, delim, column_count, &start_N, &len_N);
     get_string_in_cell(str_in, column_N, delim, column_count, temp_str_N);
 
     // nastavime novou hodnotu do bunky M a N
@@ -862,4 +880,75 @@ void move(char *str_in, int column_N, int column_M,
 
     // zkopiruje obsah retezce do str_out
     strcpy(str_out, str_in);
+}
+
+/* ---------------------------------------------- */
+
+/** 
+ * Funkce porovnava, zda retezec v bunce v column 
+ * zacina retezcem str_to_cmp
+ * @param str_in vstupni retezec
+ * @param column poradi sloupce v radku (pocita se od 1)
+ * @param delim znak oddelovace
+ * @param column_count pocet sloupcu na radku
+ * @param str_to_cmp retezec, na se kterym porovnavame obsah bunky
+ * @return true pokud retezec v obsahu bunky v column 
+ * zacina retezcem str_to_cmp 
+*/
+bool begins_with(char *str_in, int column, char delim,
+                 int column_count, char *str_to_cmp)
+{
+    char loc_str[MAX_INPUT_LENGTH];
+    get_string_in_cell(str_in, column, delim, column_count, loc_str);
+
+    for (int i = 0; i < (int)strlen(str_to_cmp); i++)
+    {
+        if (loc_str[i] != str_to_cmp[i])
+            return false;
+    }
+    return true;
+}
+
+/** 
+ * Funkce kontroluje, zda se retezec str_to_cmp 
+ * nachazi v retezci v bunce column.
+ * @param str_in vstupni retezec
+ * @param column poradi sloupce v radku (pocita se od 1)
+ * @param delim znak oddelovace
+ * @param column_count pocet sloupcu na radku
+ * @param str_to_cmp retezec, na se kterym porovnavame obsah bunky
+ * @return true pokud retezec v obsahu bunky v column nachazi 
+*/
+bool contains(char *str_in, int column,
+              char delim, int column_count, char *str_to_cmp)
+{
+    // nacita obsah bunky do promenne
+    char loc_str[MAX_INPUT_LENGTH];
+    get_string_in_cell(str_in, column, delim, column_count, loc_str);
+
+    int j = 0;
+    int len = (int)strlen(str_to_cmp);
+
+    // prohledava retezec
+    for (int i = 0; i < (int)strlen(loc_str); i++)
+    {
+        // pokud je schoda znaku a index j je stale v intervalu str_to_cmp
+        // zvetsujeme indexy i a j o 1
+        // (vnejsi cyklus ho za normalnich okolnosti neincrementuje)
+        // take kontroluje, zda neskoncil retezec loc_str
+        while (j < len && loc_str[i] != '\0' && loc_str[i] == str_to_cmp[j])
+        {
+            i++;
+            j++;
+        }
+
+        // pokud index j == len, nebo-li cyklus prosel vsechny znaky
+        // str_to_cmp a vsechny se shoduji, znamena to, ze se opravdu nachazi
+        if (j == len)
+            return true;
+
+        // resetuje se promenna j na konci kontroly
+        j = 0;
+    }
+    return false;
 }
