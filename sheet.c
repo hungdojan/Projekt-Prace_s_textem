@@ -65,6 +65,10 @@ int int_func(char *str_in, int column, char delim,
              int column_count, char *str_out);
 void copy(char *str_in, int column_N, int column_M,
           char delim, int column_count, char *str_out);
+void swap(char *str_in, int column_N, int column_M,
+          char delim, int column_count, char *str_out);
+void move(char *str_in, int column_N, int column_M,
+          char delim, int column_count, char *str_out);
 
 /* ------------------------- */
 
@@ -78,7 +82,7 @@ int main(int argc, char *argv[])
     char *list_of_delims = ":|,;";
     char file_delim = ' ';
     char output_delim = ':';
-    int column_count = 3;
+    int column_count = 5;
 
     for (int i = 0; i < argc; i++)
     {
@@ -719,7 +723,7 @@ void to_upper(char *str_in, int column, char delim,
 int round_func(char *str_in, int column, char delim,
                int column_count, char *str_out)
 {
-    // dostaneme prvni index a delku bunky
+    // ulozeni prvniho indexu a delky retezce bunky
     int start_index, len;
     get_cell_info(str_in, column, delim, column_count, &start_index, &len);
 
@@ -749,7 +753,7 @@ int round_func(char *str_in, int column, char delim,
 int int_func(char *str_in, int column, char delim,
              int column_count, char *str_out)
 {
-    // dostaneme prvni index a delku bunky
+    // ulozeni prvniho indexu a delky retezce bunky
     int start_index, len;
     get_cell_info(str_in, column, delim, column_count, &start_index, &len);
 
@@ -780,13 +784,82 @@ void copy(char *str_in, int column_N, int column_M,
           char delim, int column_count, char *str_out)
 {
     char temp_str[MAX_INPUT_LENGTH];
-    // dostaneme prvni index a delku bunky
+    // ulozeni prvniho indexu a delky retezce bunky
     int start_index, len;
     get_cell_info(str_in, column_N, delim, column_count, &start_index, &len);
 
-    // ulozeni hodnoty ve sloupci N
+    // nacteni hodnoty ve sloupci N
     get_string_in_cell(str_in, column_N, delim, column_count, temp_str);
 
     // nastavime novou hodnotu do bunky M
     cset(str_in, column_M, delim, column_count, temp_str, str_out);
+}
+
+/** 
+ * Funkce vymeni obsahy buneky z column_M a column_N.
+ * @param str_in vstupni retezec
+ * @param column_N prvni sloupec
+ * @param column_M druhy sloupec
+ * @param delim znak oddelovace
+ * @param column_count pocet sloupcu na radku
+ * @param str_out vystupni retezec
+*/
+void swap(char *str_in, int column_N, int column_M,
+          char delim, int column_count, char *str_out)
+{
+    char temp_str_M[MAX_INPUT_LENGTH];
+    char temp_str_N[MAX_INPUT_LENGTH];
+    int start_M, len_M, start_N, len_N;
+
+    // ulozeni prvniho indexu a delky retezce bunky ve sloupci M
+    // nacteni hodnoty ve sloupci M do temp_str_M
+    get_cell_info(str_in, column_M, delim, column_count, &start_M, &len_M);
+    get_string_in_cell(str_in, column_M, delim, column_count, temp_str_M);
+
+    // ulozeni prvniho indexu a delky retezce bunky ve sloupci N
+    // nacteni hodnoty ve sloupci N do temp_str_N
+    get_cell_info(str_in, column_N, delim, column_count, &start_N, &len_N);
+    get_string_in_cell(str_in, column_N, delim, column_count, temp_str_N);
+
+    // nastavime novou hodnotu do bunky M a N
+    cset(str_in, column_M, delim, column_count, temp_str_N, str_out);
+    cset(str_in, column_N, delim, column_count, temp_str_M, str_out);
+}
+
+/** 
+ * Funkce přesune obsah bunky v column_N před column_M.
+ * @param str_in vstupni retezec
+ * @param column_N sloupec, ktery se presouva
+ * @param column_M sloupec, pred ktery se ma presunout obsah bunky column_N
+ * @param delim znak oddelovace
+ * @param column_count pocet sloupcu na radku
+ * @param str_out vystupni retezec
+*/
+void move(char *str_in, int column_N, int column_M,
+          char delim, int column_count, char *str_out)
+{
+    /** 
+     * pokud je column_N nalevo od column_M
+     * column_N se prohazuje s pravou bunkou
+     * dokud nebude hned vedle column_M
+    */
+    while (column_N < column_M - 1)
+    {
+        swap(str_in, column_N, column_N + 1, delim, column_count, str_in);
+        column_N++;
+    }
+
+    /** 
+     * pokud je column_N napravo od column_M
+     * tak se column_N se prohazuje s levou bunkou
+     * dokud nebude nalevo od column_M (nebo-li pred column_M)
+    */
+    while (column_N > column_M)
+    {
+        swap(str_in, column_N, column_N - 1, delim, column_count, str_in);
+        column_N--;
+    }
+
+    // zkopiruje obsah retezce do str_out
+    strcpy(str_out, str_in);
 }
