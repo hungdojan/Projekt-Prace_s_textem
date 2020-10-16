@@ -59,8 +59,8 @@ void to_lower(char *str_in, int column, char delim,
               int column_count, char *str_out);
 void to_upper(char *str_in, int column, char delim,
               int column_count, char *str_out);
-// int round_func(char *str_in, int column, char delim,
-//                int column_count, char *str_out);
+int round_func(char *str_in, int column, char delim,
+               int column_count, char *str_out);
 int int_func(char *str_in, int column, char delim,
              int column_count, char *str_out);
 
@@ -93,11 +93,7 @@ int main(int argc, char *argv[])
     while (fgets(temp, MAX_INPUT_LENGTH, stdin) != NULL)
     {
         // code...
-        // int number = round_number(temp);
-        // int_func(temp, 1, output_delim, column_count, temp);
-        round_number(temp);
         push_line(temp);
-        // printf("%d\n", number);
     }
 
     (void)column_count;
@@ -517,7 +513,8 @@ bool is_number_negative(char *str_in)
 }
 
 /** 
- * TODO:
+ * Funkce prevede retezec na cislo a zaokrouhli ho
+ * @param number vstupni retezec cisla
 */
 int round_number(char *number)
 {
@@ -641,9 +638,14 @@ void dcol(int column, char delim, int column_count)
 void cset(char *str_in, int column, char delim,
           int column_count, char *str_to_insert, char *str_out)
 {
+    // dostane pocatecni index retezce v bunce a jeho delku
     int start_index, len;
     get_cell_info(str_in, column, delim, column_count, &start_index, &len);
+
+    // smaze obsah bunky
     remove_str(str_in, start_index, len, str_in);
+
+    // vlozi novy obsah
     insert_str(str_in, start_index, str_to_insert, str_out);
 }
 
@@ -657,8 +659,11 @@ void cset(char *str_in, int column, char delim,
 */
 void to_lower(char *str_in, int column, char delim, int column_count, char *str_out)
 {
+    // dostane pocatecni index retezce v bunce a jeho delku
     int start_index, len;
     get_cell_info(str_in, column, delim, column_count, &start_index, &len);
+
+    // projede retezec a prevede velka pismena na mala
     for (int i = start_index; i <= len + start_index; i++)
     {
         if (is_upper(str_in[i]))
@@ -666,6 +671,8 @@ void to_lower(char *str_in, int column, char delim, int column_count, char *str_
             str_in[i] += CONVERT_TO_LOWER;
         }
     }
+
+    // prevod na str_out
     strcpy(str_out, str_in);
 }
 
@@ -677,10 +684,14 @@ void to_lower(char *str_in, int column, char delim, int column_count, char *str_
  * @param column_count pocet sloupcu na radku
  * @param str_out vystupni retezec
 */
-void to_upper(char *str_in, int column, char delim, int column_count, char *str_out)
+void to_upper(char *str_in, int column, char delim,
+              int column_count, char *str_out)
 {
+    // dostane pocatecni index retezce v bunce a jeho delku
     int start_index, len;
     get_cell_info(str_in, column, delim, column_count, &start_index, &len);
+
+    // projede retezec a prevede mala pismena na velka
     for (int i = start_index; i <= len + start_index; i++)
     {
         if (is_lower(str_in[i]))
@@ -688,26 +699,41 @@ void to_upper(char *str_in, int column, char delim, int column_count, char *str_
             str_in[i] += CONVERT_TO_UPPER;
         }
     }
+
+    // prevod na str_out
     strcpy(str_out, str_in);
 }
 
 /** 
- * 
+ * Funkce z bunky ziska retezec, ktery prevede 
+ * na cislo a zaokrouhli ho.
+ * @param str_in vstupni retezec
+ * @param column poradi sloupce v radku (pocita se od 1)
+ * @param delim znak oddelovace
+ * @param column_count pocet sloupcu na radku
+ * @param str_out vystupni retezec
+ * @return pokud nastane chyba tak vraci nenulove cislo
 */
-// int round_func(char *str_in, int column, char delim,
-//                int column_count, char *str_out)
-// {
-//     int start_index, len;
-//     get_cell_info(str_in, column, delim, column_count, &start_index, &len);
+int round_func(char *str_in, int column, char delim,
+               int column_count, char *str_out)
+{
+    // dostaneme prvni index a delku bunky
+    int start_index, len;
+    get_cell_info(str_in, column, delim, column_count, &start_index, &len);
 
-//     char loc_str[MAX_INPUT_LENGTH];
-//     get_string_in_cell(str_in, column, delim, column_count, loc_str);
-//     if (!is_number(loc_str))
-//         return EXCEPTION_NOT_A_NUMBER;
-//     if (get_char_count(loc_str, FLOATING_POINT_CHAR) == 1)
+    // ulozeni obsahu bunky
+    char loc_str[MAX_INPUT_LENGTH];
+    get_string_in_cell(str_in, column, delim, column_count, loc_str);
 
-//         return 0;
-// }
+    // pokud retezec neni cislo, tak to vyhodi chybovou hlasku
+    if (!is_number(loc_str))
+        return EXCEPTION_NOT_A_NUMBER;
+
+    // prevede cislo na retezec a vlozi ho do bunky
+    sprintf(loc_str, "%d", round_number(loc_str));
+    cset(str_in, column, delim, column_count, loc_str, str_out);
+    return 0;
+}
 
 /** 
  * Funkce prevede desetinne cislo na cele cislo a ulozi do bunky.
@@ -728,7 +754,7 @@ int int_func(char *str_in, int column, char delim,
     // ulozeni obsahu bunky
     char loc_str[MAX_INPUT_LENGTH];
     get_string_in_cell(str_in, column, delim, column_count, loc_str);
-    
+
     // pokud retezec neni cislo, tak to vyhodi chybovou hlasku
     if (!is_number(loc_str))
         return EXCEPTION_NOT_A_NUMBER;
