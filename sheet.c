@@ -64,12 +64,16 @@ int round_func(char *str_in, int column, char delim,
                int column_count, char *str_out);
 int int_func(char *str_in, int column, char delim,
              int column_count, char *str_out);
-void copy(char *str_in, int column_N, int column_M,
+void copy(char *str_in, int col_N, int col_M,
           char delim, int column_count, char *str_out);
-void swap(char *str_in, int column_N, int column_M,
+void swap(char *str_in, int col_N, int col_M,
           char delim, int column_count, char *str_out);
-void move(char *str_in, int column_N, int column_M,
+void move(char *str_in, int col_N, int col_M,
           char delim, int column_count, char *str_out);
+void csum(char *str_in, int col_C, int col_N,
+          int col_M, char delim, int column_count, char *str_out);
+void cavr(char *str_in, int col_C, int col_N,
+          int col_M, char delim, int column_count, char *str_out);
 
 /* ---- Selekce radku ------ */
 
@@ -90,7 +94,7 @@ int main(int argc, char *argv[])
     char *list_of_delims = ":|,;";
     char file_delim = ' ';
     char output_delim = ':';
-    int column_count = 1;
+    int column_count = 0;
 
     for (int i = 0; i < argc; i++)
     {
@@ -106,15 +110,12 @@ int main(int argc, char *argv[])
     */
     while (fgets(temp, MAX_INPUT_LENGTH, stdin) != NULL)
     {
-        bool is_true = begins_with(temp, 1, output_delim, column_count, "abc");
         // code...
-
-        // push_line(temp);
-        printf("%s", temp);
-        if (is_true)
-            printf("abc: true\n");
-        else
-            printf("abc: false\n");
+        char loc_str[MAX_INPUT_LENGTH];
+        if (column_count == 0)
+            column_count = get_char_count(temp, output_delim) + 1;
+        
+        push_line(loc_str);
     }
 
     (void)column_count;
@@ -372,7 +373,7 @@ void insert_str(char *str_in, int start_index, char *str_to_insert, char *str_ou
 /** 
  * Funkce vraci obsah bunky na radku v tabulkovem souboru. 
  * @param str_in vstupni retezec
- * @param column poradi sloupce v radku (pocita se od 1)
+ * @param column sloupce v radku (pocita se od 1)
  * @param delim znak oddelovace
  * @param column_count pocet sloupcu na radku
  * @param str_out vystupni retezec
@@ -396,7 +397,7 @@ void get_string_in_cell(char *str_in, int column, char delim,
  * Funkce ziskava dve informace o bunce v retezce: jeji pocatecni index 
  * a delka retezce v bunce.
  * @param str_in vstupni retezec
- * @param column poradi sloupce v radku (pocita se od 1)
+ * @param column sloupce v radku (pocita se od 1)
  * @param delim znak oddelovace
  * @param column_count pocet sloupcu
  * @param pstart_index_out vystupni parametr pro pocatecni index
@@ -540,7 +541,7 @@ bool is_number_negative(char *str_in)
 int round_number(char *number)
 {
     int int_number = atoi(number);
-    float float_number = atof(number);
+    double float_number = atof(number);
     if (float_number - int_number * 1.0 >= 0.5)
         int_number++;
     return int_number;
@@ -633,7 +634,7 @@ void icol(int column, char delim, int column_count)
 /** 
  * Funkce odstranuje sloupec z radku. 
  * Funkce momentalne projizdi cely soubor.
- * @param column poradi sloupce v radku (pocita se od 1)
+ * @param column sloupce v radku (pocita se od 1)
  * @param delim znak oddelovace
  * @param column_count pocet sloupcu na radku
 */
@@ -661,7 +662,7 @@ void dcol(int column, char delim, int column_count)
  * Funkce do bunky column nastavi retezec str_in. 
  * Promenna str_out slouzi jako vystupni retezec pro vytisknuti do souboru.
  * @param str_in vstupni retezec
- * @param column poradi sloupce v radku (pocita se od 1)
+ * @param column sloupce v radku (pocita se od 1)
  * @param delim znak oddelovace
  * @param column_count pocet sloupcu na radku
  * @param str_to_insert retezec, ktery bude nastaven v bunce
@@ -670,6 +671,10 @@ void dcol(int column, char delim, int column_count)
 void cset(char *str_in, int column, char delim,
           int column_count, char *str_to_insert, char *str_out)
 {
+    if (strlen(str_to_insert) > 100)
+    {
+        /** TODO: Error */
+    }
     // dostane pocatecni index retezce v bunce a jeho delku
     int start_index, len;
     get_cell_info(str_in, column, delim, column_count, &start_index, &len);
@@ -684,7 +689,7 @@ void cset(char *str_in, int column, char delim,
 /** 
  * Funkce prepise vsechna velka pismena v bunce na mala
  * @param str_in vstupni retezec
- * @param column poradi sloupce v radku (pocita se od 1)
+ * @param column sloupce v radku (pocita se od 1)
  * @param delim znak oddelovace
  * @param column_count pocet sloupcu na radku
  * @param str_out vystupni retezec
@@ -711,7 +716,7 @@ void to_lower(char *str_in, int column, char delim, int column_count, char *str_
 /** 
  * Funkce prepise vsechna mala pismena v bunce na velka
  * @param str_in vstupni retezec
- * @param column poradi sloupce v radku (pocita se od 1)
+ * @param column sloupce v radku (pocita se od 1)
  * @param delim znak oddelovace
  * @param column_count pocet sloupcu na radku
  * @param str_out vystupni retezec
@@ -740,7 +745,7 @@ void to_upper(char *str_in, int column, char delim,
  * Funkce z bunky ziska retezec, ktery prevede 
  * na cislo a zaokrouhli ho.
  * @param str_in vstupni retezec
- * @param column poradi sloupce v radku (pocita se od 1)
+ * @param column sloupce v radku (pocita se od 1)
  * @param delim znak oddelovace
  * @param column_count pocet sloupcu na radku
  * @param str_out vystupni retezec
@@ -770,7 +775,7 @@ int round_func(char *str_in, int column, char delim,
 /** 
  * Funkce prevede desetinne cislo na cele cislo a ulozi do bunky.
  * @param str_in vstupni retezec
- * @param column poradi sloupce v radku (pocita se od 1)
+ * @param column sloupce v radku (pocita se od 1)
  * @param delim znak oddelovace
  * @param column_count pocet sloupcu na radku
  * @param str_out vystupni retezec
@@ -798,88 +803,167 @@ int int_func(char *str_in, int column, char delim,
 }
 
 /** 
- * Funkce prepise obsah bunky ve column_M hodnotami ze column_N.
+ * Funkce prepise obsah bunky ve col_M hodnotou ze col_N 
+ * (zkopiruje obsah bunky col_N do col_M).
  * @param str_in vstupni retezec
- * @param column_N sloupec, ze ktereho se kopiruje
- * @param column_M sloupec, do ktereho se kopiruje
+ * @param col_N sloupec, ze ktereho se kopiruje
+ * @param col_M sloupec, do ktereho se kopiruje
  * @param delim znak oddelovace
  * @param column_count pocet sloupcu na radku
  * @param str_out vystupni retezec
 */
-void copy(char *str_in, int column_N, int column_M,
+void copy(char *str_in, int col_N, int col_M,
           char delim, int column_count, char *str_out)
 {
     char temp_str[MAX_INPUT_LENGTH];
 
     // nacteni hodnoty ve sloupci N
-    get_string_in_cell(str_in, column_N, delim, column_count, temp_str);
+    get_string_in_cell(str_in, col_N, delim, column_count, temp_str);
 
     // nastavime novou hodnotu do bunky M
-    cset(str_in, column_M, delim, column_count, temp_str, str_out);
+    cset(str_in, col_M, delim, column_count, temp_str, str_out);
 }
 
 /** 
- * Funkce vymeni obsahy buneky z column_M a column_N.
+ * Funkce vymeni obsahy buneky z col_M a col_N.
  * @param str_in vstupni retezec
- * @param column_N prvni sloupec
- * @param column_M druhy sloupec
+ * @param col_N prvni sloupec
+ * @param col_M druhy sloupec
  * @param delim znak oddelovace
  * @param column_count pocet sloupcu na radku
  * @param str_out vystupni retezec
 */
-void swap(char *str_in, int column_N, int column_M,
+void swap(char *str_in, int col_N, int col_M,
           char delim, int column_count, char *str_out)
 {
     char temp_str_M[MAX_INPUT_LENGTH];
     char temp_str_N[MAX_INPUT_LENGTH];
 
     // nacteni hodnoty ve sloupci M do temp_str_M
-    get_string_in_cell(str_in, column_M, delim, column_count, temp_str_M);
+    get_string_in_cell(str_in, col_M, delim, column_count, temp_str_M);
 
     // nacteni hodnoty ve sloupci N do temp_str_N
-    get_string_in_cell(str_in, column_N, delim, column_count, temp_str_N);
+    get_string_in_cell(str_in, col_N, delim, column_count, temp_str_N);
 
     // nastavime novou hodnotu do bunky M a N
-    cset(str_in, column_M, delim, column_count, temp_str_N, str_out);
-    cset(str_in, column_N, delim, column_count, temp_str_M, str_out);
+    cset(str_in, col_M, delim, column_count, temp_str_N, str_out);
+    cset(str_in, col_N, delim, column_count, temp_str_M, str_out);
 }
 
 /** 
- * Funkce přesune obsah bunky v column_N před column_M.
+ * Funkce přesune obsah bunky v col_N před col_M.
  * @param str_in vstupni retezec
- * @param column_N sloupec, ktery se presouva
- * @param column_M sloupec, pred ktery se ma presunout obsah bunky column_N
+ * @param col_N sloupec, ktery se presouva
+ * @param col_M sloupec, pred ktery se ma presunout obsah bunky col_N
  * @param delim znak oddelovace
  * @param column_count pocet sloupcu na radku
  * @param str_out vystupni retezec
 */
-void move(char *str_in, int column_N, int column_M,
+void move(char *str_in, int col_N, int col_M,
           char delim, int column_count, char *str_out)
 {
     /** 
-     * pokud je column_N nalevo od column_M
-     * column_N se prohazuje s pravou bunkou
-     * dokud nebude hned vedle column_M
+     * pokud je col_N nalevo od col_M
+     * col_N se prohazuje s pravou bunkou
+     * dokud nebude hned vedle col_M
     */
-    while (column_N < column_M - 1)
+    while (col_N < col_M - 1)
     {
-        swap(str_in, column_N, column_N + 1, delim, column_count, str_in);
-        column_N++;
+        swap(str_in, col_N, col_N + 1, delim, column_count, str_in);
+        col_N++;
     }
 
     /** 
-     * pokud je column_N napravo od column_M
-     * tak se column_N se prohazuje s levou bunkou
-     * dokud nebude nalevo od column_M (nebo-li pred column_M)
+     * pokud je col_N napravo od col_M
+     * tak se col_N se prohazuje s levou bunkou
+     * dokud nebude nalevo od col_M (nebo-li pred col_M)
     */
-    while (column_N > column_M)
+    while (col_N > col_M)
     {
-        swap(str_in, column_N, column_N - 1, delim, column_count, str_in);
-        column_N--;
+        swap(str_in, col_N, col_N - 1, delim, column_count, str_in);
+        col_N--;
     }
 
     // zkopiruje obsah retezce do str_out
     strcpy(str_out, str_in);
+}
+
+/** 
+ * Funkce do bunky v column_C ulozi soucet hodnot bunek na 
+ * stejnem radku ve sloupcích col_N až col_M včetně.
+ * Podminky: N <= M, C nesmí patřit do intervalu <N;M>
+ * @param str_in vstupni retezec
+ * @param col_C sloupce v radku (pocita se od 1)
+ * @param col_N sloupec; dolni hranice intervalu
+ * @param col_M sloupec; horni hranice intervalu
+ * @param delim znak oddelovace
+ * @param column_count pocet sloupcu na radku
+ * @param str_to_cmp retezec, na se kterym porovnavame obsah bunky 
+*/
+void csum(char *str_in, int col_C, int col_N,
+          int col_M, char delim, int column_count, char *str_out)
+{
+    /** TOOD: Error */
+    if (is_in_range(col_C, col_N, col_M))
+    {
+        printf("Error: column C is within the interval.\n");
+        return;
+    }
+
+    double sum = 0.0;
+    char loc_str[MAX_INPUT_LENGTH];
+
+    // prochazeni vsech bunek v intervalu
+    // pokud v nejake bunce nebude cislo, nastane error
+    for (int i = col_N; i <= col_M; i++)
+    {
+        get_string_in_cell(str_in, i, delim, column_count, loc_str);
+        /** TOOD: Error */
+        if (!is_number(loc_str))
+        {
+            printf("Error: not a number.\n");
+            return;
+        }
+
+        sum += atof(loc_str);
+    }
+
+    // prevod na string a ulozeni hodnoty do bunky sloupce col_C
+    sprintf(loc_str, "%f", sum);
+    cset(str_in, col_C, delim, column_count, loc_str, str_out);
+}
+
+void cavr(char *str_in, int col_C, int col_N,
+          int col_M, char delim, int column_count, char *str_out)
+{
+    /** TOOD: Error */
+    if (is_in_range(col_C, col_N, col_M))
+    {
+        printf("Error: column C is within the interval.\n");
+        return;
+    }
+
+    double sum = 0.0;
+    char loc_str[MAX_INPUT_LENGTH];
+
+    // prochazeni vsech bunek v intervalu
+    // pokud v nejake bunce nebude cislo, nastane error
+    for (int i = col_N; i <= col_M; i++)
+    {
+        get_string_in_cell(str_in, i, delim, column_count, loc_str);
+        /** TOOD: Error */
+        if (!is_number(loc_str))
+        {
+            printf("Error: not a number.\n");
+            return;
+        }
+
+        sum += atof(loc_str);
+    }
+
+    // prevod na string a ulozeni hodnoty do bunky sloupce col_C
+    sprintf(loc_str, "%f", sum / (col_M - col_N + 1));
+    cset(str_in, col_C, delim, column_count, loc_str, str_out);
 }
 
 /* ---------------------------------------------- */
@@ -888,7 +972,7 @@ void move(char *str_in, int column_N, int column_M,
  * Funkce porovnava, zda retezec v bunce v column 
  * zacina retezcem str_to_cmp
  * @param str_in vstupni retezec
- * @param column poradi sloupce v radku (pocita se od 1)
+ * @param column sloupce v radku (pocita se od 1)
  * @param delim znak oddelovace
  * @param column_count pocet sloupcu na radku
  * @param str_to_cmp retezec, na se kterym porovnavame obsah bunky
@@ -901,8 +985,10 @@ bool begins_with(char *str_in, int column, char delim,
     char loc_str[MAX_INPUT_LENGTH];
     get_string_in_cell(str_in, column, delim, column_count, loc_str);
 
+    // cyklus projizdi retezec str_in a str_to_cmp zaroven
     for (int i = 0; i < (int)strlen(str_to_cmp); i++)
     {
+        // pokud dochazi k neshode, funkce vraci false
         if (loc_str[i] != str_to_cmp[i])
             return false;
     }
@@ -913,7 +999,7 @@ bool begins_with(char *str_in, int column, char delim,
  * Funkce kontroluje, zda se retezec str_to_cmp 
  * nachazi v retezci v bunce column.
  * @param str_in vstupni retezec
- * @param column poradi sloupce v radku (pocita se od 1)
+ * @param column sloupce v radku (pocita se od 1)
  * @param delim znak oddelovace
  * @param column_count pocet sloupcu na radku
  * @param str_to_cmp retezec, na se kterym porovnavame obsah bunky
