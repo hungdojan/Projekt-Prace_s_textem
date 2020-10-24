@@ -3,36 +3,101 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
-#define MAX_INPUT_LENGTH 10241
-#define EXCEPTION_OUT_OF_BOUND -2
-#define EXCEPTION_NOT_A_NUMBER -2
+#define MAX_INPUT_LENGTH 10240
+#define MAX_STR_LENGTH 100
 #define TILL_END __INT32_MAX__
 #define DEFAULT_DELIM ' '
 #define CONVERT_TO_UPPER ('A' - 'a')
 #define CONVERT_TO_LOWER ('a' - 'A')
 #define FLOATING_POINT_CHAR '.'
 
-char temp[MAX_INPUT_LENGTH]; // slouzi k ulozeni posledniho nacteneho radku
+char temp[MAX_INPUT_LENGTH];
+
+/* ---- Osetreni chyb ------ */
+enum Error
+{
+    ERR_FEMPTY = 1,
+    ERR_INPUT_TOO_LONG,
+    ERR_STR_LENGTH_TOO_LONG,
+    ERR_OUT_OF_BOUND,
+    ERR_NOTNUM,
+    ERR_WRONG_CCOUNT,
+    ERR_UNDEFINED
+};
+
+int errors(int error_type)
+{
+    switch (error_type)
+    {
+    case ERR_FEMPTY:
+        fprintf(stderr, "Error: The file is empty.\n");
+        return ERR_FEMPTY;
+
+    case ERR_INPUT_TOO_LONG:
+        fprintf(stderr, "Error: length of the line is out of range.\n");
+        return ERR_INPUT_TOO_LONG;
+
+    case ERR_STR_LENGTH_TOO_LONG:
+        fprintf(stderr, "Error: length of the string is out of range.\n");
+        return ERR_STR_LENGTH_TOO_LONG;
+
+    case ERR_OUT_OF_BOUND:
+        fprintf(stderr, "Error: index out of bound.\n");
+        return ERR_OUT_OF_BOUND;
+
+    case ERR_NOTNUM:
+        fprintf(stderr, "Error: input is not a number.\n");
+        return ERR_NOTNUM;
+
+    case ERR_WRONG_CCOUNT:
+        fprintf(stderr, "Error: the number of columns doesn't match the main line.\n");
+        return ERR_WRONG_CCOUNT;
+
+    default:
+        fprintf(stderr, "Unexpected error!\n");
+        return ERR_UNDEFINED;
+    }
+}
+
+/* ---- Struktury ---------- */
+
+struct file_t
+{
+    char *list_of_delims;
+    char file_delim;
+    char out_delim;
+    int clm_count;
+    int row_count;
+};
+
+struct line_t
+{
+    char value[MAX_INPUT_LENGTH + 1];
+    int clm_count;
+};
 
 /* ---- Pomocne funkce ----- */
+struct file_t file_init();
+void load_first_line(struct line_t *line, struct file_t *file);
+void load_line(struct line_t *line, struct file_t *file);
+void push_line(struct line_t line, struct file_t file);
 
 int indexof(char *str_in, char c, int start_index, int position);
 void ignore_lines(int length, char *str_in);
 int get_char_count(char *str_in, char c);
-char set_delim(char *str_in, char *list_of_delims);
-void load_line(char *str_out);
-void push_line(char *str_in);
-void create_newline(char delim, int column_count, bool newline);
+void create_newline(struct file_t *file, bool newline);
 void insert_str(char *str_in, int start_index,
                 char *str_to_insert, char *str_out);
 void remove_str(char *str_in, int start_index, int length, char *str_out);
 void replace_str(char *str_in, int start_index,
                  int length, char *str_replacing, char *str_out);
 void substring(char *str_in, int start_index, int len, char *str_out);
-void get_string_in_cell(char *str_in, int column,
-                        char delim, int column_count, char *str_out);
-void get_cell_info(char *str_in, int column, char delim,
-                   int column_count, int *pstart_index_out, int *plen_out);
+
+void get_string_in_cell(char *str_in, int clm,
+                        struct file_t file, char *str_out);
+void get_cell_info(char *str_in, int clm, struct file_t file,
+                   int *pstart_index, int *plen_out);
+
 int last_index(char *str);
 bool is_lower(char c);
 bool is_upper(char c);
@@ -45,42 +110,30 @@ bool is_in_range(int number, int lower_bound, int upper_bound);
 
 /* ---- Uprava tabulky ----- */
 
-void irow(char delim, int column_count);
-void arow(char delim, int column_count);
+void irow(struct file_t *file);
+void arow(struct file_t file);
 void drow(int row);
 void drows(int starting_row, int ending_row);
-void icol(int column, char delim, int column_count);
-void dcol(int column, char delim, int column_count);
+void icol(struct line_t *line, int clm, struct file_t file);
+void dcol(struct line_t *line, int clm, struct file_t file);
 
 /* ---- Zpracovavani dat --- */
 
-void cset(char *str_in, int column, char delim, int column_count,
-          char *str_to_insert, char *str_out);
-void to_lower(char *str_in, int column, char delim,
-              int column_count, char *str_out);
-void to_upper(char *str_in, int column, char delim,
-              int column_count, char *str_out);
-int round_func(char *str_in, int column, char delim,
-               int column_count, char *str_out);
-int int_func(char *str_in, int column, char delim,
-             int column_count, char *str_out);
-void copy(char *str_in, int col_N, int col_M,
-          char delim, int column_count, char *str_out);
-void swap(char *str_in, int col_N, int col_M,
-          char delim, int column_count, char *str_out);
-void move(char *str_in, int col_N, int col_M,
-          char delim, int column_count, char *str_out);
-void csum(char *str_in, int col_C, int col_N,
-          int col_M, char delim, int column_count, char *str_out);
-void cavr(char *str_in, int col_C, int col_N,
-          int col_M, char delim, int column_count, char *str_out);
+void cset(struct line_t *line, int clm, struct file_t file, char *str_to_insert);
+void to_lower(struct line_t *line, int clm, struct file_t file);
+void to_upper(struct line_t *line, int clm, struct file_t file);
+int round_func(struct line_t *line, int clm, struct file_t file);
+int int_func(struct line_t *line, int clm, struct file_t file);
+void copy(struct line_t *line, int col_N, int col_M, struct file_t file);
+void swap(struct line_t *line, int col_N, int col_M, struct file_t file);
+void move(struct line_t *line, int col_N, int col_M, struct file_t file);
+void csum(struct line_t *line, int col_C, int col_N, int col_M, struct file_t file);
+void cavr(struct line_t *line, int col_C, int col_N, int col_M, struct file_t file);
 
 /* ---- Selekce radku ------ */
 
-bool begins_with(char *str_in, int column, char delim,
-                 int column_count, char *str_to_cmp);
-bool contains(char *str_in, int column, char delim,
-              int column_count, char *str_to_cmp);
+bool begins_with(char *str_in, int clm, struct file_t file, char *str_to_cmp);
+bool contains(char *str_in, int clm, struct file_t file, char *str_to_cmp);
 
 /* ------------------------- */
 
@@ -91,37 +144,123 @@ int main(int argc, char *argv[])
      * potreba to dodelat 
     */
 
-    char *list_of_delims = ":|,;";
-    char file_delim = ' ';
-    char output_delim = ':';
-    int column_count = 0;
+    struct file_t file = file_init();
+    struct line_t line = {"", 0};
+    bool arow = false;
 
+    /* TODO: argumenty*/
     for (int i = 0; i < argc; i++)
     {
         if (!strcmp(argv[i], "-d") && argc >= i + 2)
         {
-            strcpy(list_of_delims, argv[i + 1]);
-            output_delim = list_of_delims[0];
+            strcpy(file.list_of_delims, argv[i + 1]);
+            file.out_delim = file.list_of_delims[0];
         }
     }
+
+    file.list_of_delims = ":|,;";
+    file.file_delim = ':';
+    file.out_delim = '|';
+
+    load_first_line(&line, &file);
+    if (line.value[0] == '\0')
+        return errors(ERR_FEMPTY);
 
     /**
      * For testing purposes
     */
-    while (fgets(temp, MAX_INPUT_LENGTH, stdin) != NULL)
+    do
     {
-        // code...
-        char loc_str[MAX_INPUT_LENGTH];
-        if (column_count == 0)
-            column_count = get_char_count(temp, output_delim) + 1;
-        
-        push_line(loc_str);
+        // TODO: sth
+        push_line(line, file);
+        load_line(&line, &file);
+    } while (line.value[0] != '\0');
+
+    if (arow)
+    {
+        fputs("\n", stdout);
+        create_newline(&file, false);
     }
 
-    (void)column_count;
-    (void)file_delim;
-    (void)output_delim;
     return 0;
+}
+
+/* --------------------------------------------------- */
+
+struct file_t file_init()
+{
+    struct file_t file = {.list_of_delims = ""};
+    file.file_delim = ' ';
+    file.out_delim = ' ';
+    file.clm_count = 0;
+    file.row_count = 0;
+    return file;
+}
+
+void load_first_line(struct line_t *line, struct file_t *file)
+{
+    // nacte radek
+    // zkontroluje zda je prazdny
+    if (fgets(line->value, MAX_INPUT_LENGTH, stdin) == NULL)
+        return;
+
+    // zkontroluje jaky oddelovac se nachazi v souboru
+    // pokud se program dostal az do tehle faze
+    // muzeme usoudit, ze v tabulkovem souboru se nachazi alespon 1 radek a sloupec
+    int delim_count = 0;
+    file->clm_count = 1;
+    file->row_count = 1;
+    for (int i = 0; file->list_of_delims[i] != '\0'; i++)
+    {
+        delim_count = get_char_count(line->value, file->list_of_delims[i]);
+        if (delim_count != 0)
+        {
+            file->file_delim = file->list_of_delims[i];
+            file->clm_count = ++delim_count;
+            line->clm_count = file->clm_count;
+            break;
+        }
+    }
+}
+
+/**
+ * Funkce nacte do retezce line nasledujici radek ze souboru.
+ * @param line struktura line_t obsahujici informace o momentalnim radku
+ * @param file strukture file_t obsahujici informace o programu a souboru 
+*/
+void load_line(struct line_t *line, struct file_t *file)
+{
+    // resetting value of line.value to empty string
+    if (fgets(line->value, MAX_INPUT_LENGTH, stdin) == NULL)
+    {
+        strcpy(line->value, "");
+        return;
+    }
+    line->clm_count = get_char_count(line->value, file->file_delim) + 1;
+    file->row_count++;
+    if (line->clm_count != file->clm_count)
+    {
+        // TODO: ERR_WRONG_CCOUNT
+    }
+    /**
+     * TODO: check if the string ends with \0 if the length is 
+     */
+}
+
+/**
+ * Funkce vypise retezec do souboru.
+ * @param line struktura line_t obsahujici informace o momentalnim radku
+ * @param file strukture file_t obsahujici informace o programu a souboru 
+*/
+void push_line(struct line_t line, struct file_t file)
+{
+    // prepisuje vsechny oddelovace na vystupni oddelovac
+    int index;
+    while ((index = indexof(line.value, file.file_delim, 0, 1)) != -1)
+        line.value[index] = file.out_delim;
+
+    fputs(line.value, stdout);
+    (void)file;
 }
 
 /** 
@@ -138,7 +277,7 @@ int indexof(char *str_in, char c, int start_index, int position)
     if (start_index >= (int)strlen(str_in))
     {
         printf("Error: index out of bound!\n");
-        return EXCEPTION_OUT_OF_BOUND;
+        //return EXCEPTION_OUT_OF_BOUND;
     }
 
     if (position == 0) // specialni pripad position == 0
@@ -147,7 +286,7 @@ int indexof(char *str_in, char c, int start_index, int position)
     int i = start_index;
     int count = 0; // hodnota udava pocet hledanych znaku, ktere jiz potkal
 
-    for (; i < (int)strlen(str_in); i++) // hledani
+    for (; str_in[i] != '\0'; i++) // hledani
     {
         if (str_in[i] == c)
         {
@@ -188,7 +327,7 @@ int get_char_count(char *str_in, char c)
 {
     int i;
     int char_count = 0;
-    for (i = 0; i < (int)strlen(str_in); i++)
+    for (i = 0; str_in[i] != '\0'; i++)
     {
         if (str_in[i] == c)
             char_count++;
@@ -197,66 +336,31 @@ int get_char_count(char *str_in, char c)
 }
 
 /** 
- * Funkce zjistuje znak oddelovace, ktery se nachazi v tabulkovem souboru. 
- * Vraci DEFAULT_DEMIL pokud nic nenasel.
- * @param str_in vstupni retezec
- * @param list_of_delims retezec moznych oddelovacich znaku (priorita podle poradi)
- * @return oddelovaci znak, ktery se v retezci objevuje alespon jednou
-*/
-char set_delim(char *str_in, char *list_of_delims)
-{
-    int i;
-    for (i = 0; i < (int)strlen(list_of_delims); i++)
-    {
-        int char_count = get_char_count(str_in, list_of_delims[i]);
-        if (char_count > 0)
-            return list_of_delims[i];
-    }
-    return DEFAULT_DELIM;
-}
-
-/**
- * Funkce nacte do retezce line nasledujici radek ze souboru.
- * @param str_out vystupni retezec
-*/
-void load_line(char *str_out)
-{
-    fgets(str_out, MAX_INPUT_LENGTH, stdin);
-}
-
-/**
- * Funkce vypise retezec do souboru.
- * @param str_in vstupni retezec 
-*/
-void push_line(char *str_in)
-{
-    fputs(str_in, stdout);
-}
-
-/** 
  * Funkce vytvori novy radek a vypise do stdout souboru.
- * @param delim znak oddelovace
- * @param column_count pocet sloupcu
+ * @param file strukture file_t obsahujici informace o programu a souboru 
  * @param newline true, pokud je potreba dat znak '\n' na konci radku
 */
-void create_newline(char delim, int column_count, bool newline)
+void create_newline(struct file_t *file, bool newline)
 {
     /** 
      * TODO: mozne budouci pridani str_out
     */
     // delka pole se urcuje podle toho, zda-li ma byt na konci radku znak '\n'
-    int array_length = newline ? column_count : column_count - 1;
+    int array_length = newline ? file->clm_count : file->clm_count - 1;
     char loc_str[array_length];
     loc_str[array_length] = '\0'; // posledni znak je ukoncovaci znak '\0'
 
     // tvorba noveho radku
-    for (int i = 0; i < column_count - 1; i++)
+    for (int i = 0; i < file->clm_count - 1; i++)
     {
-        loc_str[i] = delim;
+        loc_str[i] = file->out_delim;
     }
+
     if (newline)
         loc_str[array_length - 1] = '\n';
-    push_line(loc_str);
+
+    file->row_count++;
+    fputs(loc_str, stdout);
 }
 
 /** 
@@ -265,7 +369,7 @@ void create_newline(char delim, int column_count, bool newline)
  * @param str_in vstupni retezec
  * @param start_index index prvniho znaku
  * @param length delka retezce, ktery se ma odstranit
- * @param str_out vystupni retezec 
+ * @param str_out vystupni retezec
 */
 void remove_str(char *str_in, int start_index, int length, char *str_out)
 {
@@ -373,23 +477,21 @@ void insert_str(char *str_in, int start_index, char *str_to_insert, char *str_ou
 /** 
  * Funkce vraci obsah bunky na radku v tabulkovem souboru. 
  * @param str_in vstupni retezec
- * @param column sloupce v radku (pocita se od 1)
- * @param delim znak oddelovace
- * @param column_count pocet sloupcu na radku
+ * @param clm sloupce v radku (pocita se od 1)
+ * @param file struktura file_t obsahujici informace o programu a souboru
  * @param str_out vystupni retezec
 */
-void get_string_in_cell(char *str_in, int column, char delim,
-                        int column_count, char *str_out)
+void get_string_in_cell(char *str_in, int clm, struct file_t file, char *str_out)
 {
     // kontrola preteceni
-    if (column <= 0 || column > column_count)
+    if (clm <= 0 || clm > file.clm_count)
     {
         printf("Error: column out of bound!\n");
         return;
     }
 
     int start_index, len;
-    get_cell_info(str_in, column, delim, column_count, &start_index, &len);
+    get_cell_info(str_in, clm, file, &start_index, &len);
     substring(str_in, start_index, len, str_out);
 }
 
@@ -397,17 +499,16 @@ void get_string_in_cell(char *str_in, int column, char delim,
  * Funkce ziskava dve informace o bunce v retezce: jeji pocatecni index 
  * a delka retezce v bunce.
  * @param str_in vstupni retezec
- * @param column sloupce v radku (pocita se od 1)
- * @param delim znak oddelovace
- * @param column_count pocet sloupcu
- * @param pstart_index_out vystupni parametr pro pocatecni index
+ * @param c sloupce v radku (pocita se od 1)
+ * @param file struktura file_t
+ * @param pstart_index vystupni parametr pro pocatecni index
  * @param plen_out vystupni delka retezce
 */
-void get_cell_info(char *str_in, int column, char delim,
-                   int column_count, int *pstart_index_out, int *plen_out)
+void get_cell_info(char *str_in, int clm, struct file_t file,
+                   int *pstart_index, int *plen_out)
 {
     // kontrola preteceni
-    if (column <= 0 || column > column_count)
+    if (clm <= 0 || clm > file.clm_count)
     {
         printf("Error: column out of bound!\n");
         return;
@@ -415,9 +516,9 @@ void get_cell_info(char *str_in, int column, char delim,
 
     // pocatecni index je prvni index po prvnim oddelovaci
     // vyjimku tvori prvni sloupec, ktery nema pred sebou oddelovac
-    *pstart_index_out = indexof(str_in, delim, 0, column - 1);
-    if (column != 1)
-        (*pstart_index_out)++;
+    *pstart_index = indexof(str_in, file.file_delim, 0, clm - 1);
+    if (clm != 1)
+        (*pstart_index)++;
 
     /** 
      * delka se urcuje jako rozdil indexu zadniho oddelovace
@@ -425,12 +526,12 @@ void get_cell_info(char *str_in, int column, char delim,
      * vyjimku tvori posledni sloupec, ktery nema za sebou oddelovac
      * u posledniho sloupce se provadi kontrola na znak '\n'
     */
-    if (column < column_count)
-        *plen_out = indexof(str_in, delim, 0, column) - *pstart_index_out;
+    if (clm < file.clm_count)
+        *plen_out = indexof(str_in, file.file_delim, 0, clm) - *pstart_index;
     else if (str_in[last_index(str_in)] == '\n')
-        *plen_out = (int)strlen(str_in) - *pstart_index_out - 1;
+        *plen_out = (int)strlen(str_in) - *pstart_index - 1;
     else
-        *plen_out = (int)strlen(str_in) - *pstart_index_out;
+        *plen_out = (int)strlen(str_in) - *pstart_index;
 }
 
 /** 
@@ -470,7 +571,7 @@ bool is_upper(char c)
 */
 bool is_letter(char c)
 {
-    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
+    return is_upper(c) || is_lower(c);
 }
 
 /** 
@@ -492,11 +593,13 @@ bool is_number(char *str_in)
 {
     if (strlen(str_in) == 0)
         return false;
+
     bool is_negative = str_in[0] == '-';
     bool is_float = false;
     int i;
-    for (i = 0; i < (int)strlen(str_in); i++)
+    for (i = 0; str_in[i] != '\0'; i++)
     {
+        // kontroluje vyjimky, kdyz zadany znak neni cislice
         if (!is_digit(str_in[i]))
         {
             switch (str_in[i])
@@ -542,6 +645,9 @@ int round_number(char *number)
 {
     int int_number = atoi(number);
     double float_number = atof(number);
+
+    // pokud je rozdil desetinneho cisla a jeho cele casti
+    // vetsi nez 0.5, cislo se zaokrouhli nahoru
     if (float_number - int_number * 1.0 >= 0.5)
         int_number++;
     return int_number;
@@ -561,29 +667,34 @@ bool is_in_range(int number, int lower_bound, int upper_bound)
 /* ---------------------------------- */
 
 /**
- * Funkce prida novy radek pred radek row. 
- * @param row radek, pred ktery se ma vlozit novy radek (row > 0)
- * @param delim znak oddelovace
- * @param column_count pocet sloupcu
+ * Funkce prida novy radek. Je mozne pouzit jen create_newline() 
+ * @param file struktura file_t obsahujici informace o programu a souboru
 */
-void irow(char delim, int column_count)
+void irow(struct file_t *file)
 {
-    create_newline(delim, column_count, true);
-    push_line(temp);
+    create_newline(file, true);
+    /*
+    pripadne v mainu
+    while (file.row_count >= 3 && file.row_count <= 5)
+        irow(&file);
+    */
 }
 
 /** 
+ * TODO: UPRAVIT A DODELAT
  * Funkce smaze radek v souboru.  
  * Funkce momentalne prochazi cely soubor.
  * @param row radek, ktery ma byt smazan (row > 0)
 */
 void drow(int row)
 {
+    // TODO: preskoci jeden radek
     ignore_lines(row - 1, temp);
     ignore_lines(TILL_END, temp);
 }
 
 /** 
+ * TODO: UPRAVIT A DODELAT
  * Funkce smaze radky od starting_row do ending_row vcetne.
  * @param starting_row pocatek intervalu (prvni radek, ktery se smaze)
  * @param ending_row konec intervalu (posledni radek, ktery se smaze)
@@ -595,65 +706,91 @@ void drows(int starting_row, int ending_row)
     {
         ignore_lines(0, temp);
     }
-    push_line(temp);
+    // push_line();
     ignore_lines(TILL_END, temp);
 }
 
 /** 
  * Funkce vlozi sloupec do radku. Funkce momentalne prochazi cely soubor.
- * @param column cislo znaci, pred kolikaty sloupec se ma vlozit novy sloupec
- * @param delim znak oddelovace
- * @param column_count pocet sloupcu na radku
+ * @param clm cislo znaci, pred kolikaty sloupec se ma vlozit novy sloupec
+ * @param file struktura file_t obsahujici informace o programu a souboru
 */
-void icol(int column, char delim, int column_count)
+void icol(struct line_t *line, int clm, struct file_t file)
 {
     char str_to_insert[2]; /* retezec oddelovace */
-    str_to_insert[0] = delim;
+    str_to_insert[0] = file.file_delim;
     str_to_insert[1] = '\0';
 
+    if (clm == 1) // pokud chce uzivatel pridat novy sloupec pred prvni
+        insert_str(line->value, 0, str_to_insert, line->value);
+
+    // pokud chce uzivatel pridat sloupec za posledni sloupec
+    else if (clm > file.clm_count)
+    {
+        int start_index, len;
+        get_cell_info(line->value, file.clm_count, file, &start_index, &len);
+        insert_str(line->value, start_index + len, str_to_insert, line->value);
+    }
+    else
+    {
+        // zacatek nove bunky
+        int starting_index = indexof(line->value, file.file_delim, 0, clm - 1) + 1;
+        insert_str(line->value, starting_index, str_to_insert, line->value);
+    }
+
     /** TODO: Error: out of bound */
+    /*
     while (fgets(temp, MAX_INPUT_LENGTH, stdin) != NULL)
     {
-        if (column == 1) // pokud chce uzivatel pridat novy sloupec pred prvni
+        if (clm == 1) // pokud chce uzivatel pridat novy sloupec pred prvni
             insert_str(temp, 0, str_to_insert, temp);
 
         // pokud chce uzivatel pridat sloupec za posledni sloupec
-        else if (column > column_count)
+        else if (clm > file.clm_count)
             insert_str(temp, last_index(temp), str_to_insert, temp);
 
         else
         {
-            /* zacatek nove bunky */
-            int starting_index = indexof(temp, delim, 0, column - 1) + 1;
+            // zacatek nove bunky
+            int starting_index = indexof(temp, file.file_delim, 0, clm - 1) + 1;
             insert_str(temp, starting_index, str_to_insert, temp);
         }
-        push_line(temp);
+        // push_line(temp);
     }
+    */
 }
 
 /** 
  * Funkce odstranuje sloupec z radku. 
  * Funkce momentalne projizdi cely soubor.
- * @param column sloupce v radku (pocita se od 1)
- * @param delim znak oddelovace
- * @param column_count pocet sloupcu na radku
+ * @param clm sloupce v radku (pocita se od 1)
+ * @param file struktura file_t obsahujici informace o programu a souboru
 */
-void dcol(int column, char delim, int column_count)
+void dcol(struct line_t *line, int clm, struct file_t file)
 {
+    int start_index, len;
+    get_cell_info(line->value, clm, file, &start_index, &len);
+
+    // v pripade, ze radek konci '\n' tak se posledni znak posouva o jedno doleva
+    if (clm == file.clm_count)
+        remove_str(line->value, start_index - 1, len + 1, line->value);
+    else
+        remove_str(line->value, start_index, len + 1, line->value);
+
     /** TODO: Error: out of bound */
-    while (fgets(temp, MAX_INPUT_LENGTH, stdin) != NULL)
-    {
-        int start_index, len;
-        get_cell_info(temp, column, delim, column_count, &start_index, &len);
+    // while (fgets(temp, MAX_INPUT_LENGTH, stdin) != NULL)
+    // {
+    //     int start_index, len;
+    //     get_cell_info(temp, clm, *file, &start_index, &len);
 
-        // v pripade, ze radek konci '\n' tak se posledni znak posouva o jedno doleva
-        if (column == column_count)
-            remove_str(temp, start_index - 1, len + 1, temp);
-        else
-            remove_str(temp, start_index, len + 1, temp);
+    //     // v pripade, ze radek konci '\n' tak se posledni znak posouva o jedno doleva
+    //     if (clm == file->clm_count)
+    //         remove_str(temp, start_index - 1, len + 1, temp);
+    //     else
+    //         remove_str(temp, start_index, len + 1, temp);
 
-        push_line(temp);
-    }
+    //     // push_line(temp);
+    // }
 }
 
 /* ------------------------------------------------------ */
@@ -661,15 +798,12 @@ void dcol(int column, char delim, int column_count)
 /** 
  * Funkce do bunky column nastavi retezec str_in. 
  * Promenna str_out slouzi jako vystupni retezec pro vytisknuti do souboru.
- * @param str_in vstupni retezec
- * @param column sloupce v radku (pocita se od 1)
- * @param delim znak oddelovace
- * @param column_count pocet sloupcu na radku
+ * @param line struktura line_t obsahujici informace o momentalnim radku
+ * @param clm sloupce v radku (pocita se od 1)
+ * @param file struktura file_t obsahujici informace o programu a souboru
  * @param str_to_insert retezec, ktery bude nastaven v bunce
- * @param str_out vystupni retezec
 */
-void cset(char *str_in, int column, char delim,
-          int column_count, char *str_to_insert, char *str_out)
+void cset(struct line_t *line, int clm, struct file_t file, char *str_to_insert)
 {
     if (strlen(str_to_insert) > 100)
     {
@@ -677,190 +811,173 @@ void cset(char *str_in, int column, char delim,
     }
     // dostane pocatecni index retezce v bunce a jeho delku
     int start_index, len;
-    get_cell_info(str_in, column, delim, column_count, &start_index, &len);
+    get_cell_info(line->value, clm, file, &start_index, &len);
 
     // smaze obsah bunky
-    remove_str(str_in, start_index, len, str_in);
+    remove_str(line->value, start_index, len, line->value);
 
     // vlozi novy obsah
-    insert_str(str_in, start_index, str_to_insert, str_out);
+    insert_str(line->value, start_index, str_to_insert, line->value);
 }
 
 /** 
  * Funkce prepise vsechna velka pismena v bunce na mala
- * @param str_in vstupni retezec
- * @param column sloupce v radku (pocita se od 1)
- * @param delim znak oddelovace
- * @param column_count pocet sloupcu na radku
- * @param str_out vystupni retezec
+ * @param line struktura line_t obsahujici informace o momentalnim radku
+ * @param clm sloupce v radku (pocita se od 1)
+ * @param file struktura file_t obsahujici informace o programu a souboru
 */
-void to_lower(char *str_in, int column, char delim, int column_count, char *str_out)
+void to_lower(struct line_t *line, int clm, struct file_t file)
 {
     // dostane pocatecni index retezce v bunce a jeho delku
     int start_index, len;
-    get_cell_info(str_in, column, delim, column_count, &start_index, &len);
+    get_cell_info(line->value, clm, file, &start_index, &len);
 
     // projede retezec a prevede velka pismena na mala
     for (int i = start_index; i <= len + start_index; i++)
     {
-        if (is_upper(str_in[i]))
+        if (is_upper(line->value[i]))
         {
-            str_in[i] += CONVERT_TO_LOWER;
+            line->value[i] += CONVERT_TO_LOWER;
         }
     }
-
-    // prevod na str_out
-    strcpy(str_out, str_in);
 }
 
 /** 
  * Funkce prepise vsechna mala pismena v bunce na velka
- * @param str_in vstupni retezec
- * @param column sloupce v radku (pocita se od 1)
- * @param delim znak oddelovace
- * @param column_count pocet sloupcu na radku
- * @param str_out vystupni retezec
+ * @param line struktura line_t obsahujici informace o momentalnim radku
+ * @param clm sloupce v radku (pocita se od 1)
+ * @param file struktura file_t obsahujici informace o programu a souboru
 */
-void to_upper(char *str_in, int column, char delim,
-              int column_count, char *str_out)
+void to_upper(struct line_t *line, int clm, struct file_t file)
 {
     // dostane pocatecni index retezce v bunce a jeho delku
     int start_index, len;
-    get_cell_info(str_in, column, delim, column_count, &start_index, &len);
+    get_cell_info(line->value, clm, file, &start_index, &len);
 
     // projede retezec a prevede mala pismena na velka
     for (int i = start_index; i <= len + start_index; i++)
     {
-        if (is_lower(str_in[i]))
+        if (is_lower(line->value[i]))
         {
-            str_in[i] += CONVERT_TO_UPPER;
+            line->value[i] += CONVERT_TO_UPPER;
         }
     }
-
-    // prevod na str_out
-    strcpy(str_out, str_in);
 }
 
 /** 
  * Funkce z bunky ziska retezec, ktery prevede 
  * na cislo a zaokrouhli ho.
- * @param str_in vstupni retezec
- * @param column sloupce v radku (pocita se od 1)
- * @param delim znak oddelovace
- * @param column_count pocet sloupcu na radku
- * @param str_out vystupni retezec
+ * @param line struktura line_t obsahujici informace o momentalnim radku
+ * @param clm sloupce v radku (pocita se od 1)
+ * @param file struktura file_t obsahujici informace o programu a souboru
  * @return pokud nastane chyba tak vraci nenulove cislo
 */
-int round_func(char *str_in, int column, char delim,
-               int column_count, char *str_out)
+int round_func(struct line_t *line, int clm, struct file_t file)
 {
     // ulozeni prvniho indexu a delky retezce bunky
     int start_index, len;
-    get_cell_info(str_in, column, delim, column_count, &start_index, &len);
+    get_cell_info(line->value, clm, file, &start_index, &len);
 
     // ulozeni obsahu bunky
     char loc_str[MAX_INPUT_LENGTH];
-    get_string_in_cell(str_in, column, delim, column_count, loc_str);
+    get_string_in_cell(line->value, clm, file, loc_str);
 
     // pokud retezec neni cislo, tak to vyhodi chybovou hlasku
     if (!is_number(loc_str))
-        return EXCEPTION_NOT_A_NUMBER;
+    {
+        return errors(ERR_NOTNUM);
+    }
 
     // prevede cislo na retezec a vlozi ho do bunky
     sprintf(loc_str, "%d", round_number(loc_str));
-    cset(str_in, column, delim, column_count, loc_str, str_out);
+    cset(line, clm, file, loc_str);
     return 0;
 }
 
 /** 
  * Funkce prevede desetinne cislo na cele cislo a ulozi do bunky.
- * @param str_in vstupni retezec
- * @param column sloupce v radku (pocita se od 1)
- * @param delim znak oddelovace
- * @param column_count pocet sloupcu na radku
- * @param str_out vystupni retezec
+ * @param line struktura line_t obsahujici informace o momentalnim radku
+ * @param clm sloupce v radku (pocita se od 1)
+ * @param file struktura file_t obsahujici informace o programu a souboru
  * @return pokud nastane chyba tak vraci nenulove cislo
 */
-int int_func(char *str_in, int column, char delim,
-             int column_count, char *str_out)
+int int_func(struct line_t *line, int clm, struct file_t file)
 {
     // ulozeni prvniho indexu a delky retezce bunky
     int start_index, len;
-    get_cell_info(str_in, column, delim, column_count, &start_index, &len);
+    get_cell_info(line->value, clm, file, &start_index, &len);
 
     // ulozeni obsahu bunky
     char loc_str[MAX_INPUT_LENGTH];
-    get_string_in_cell(str_in, column, delim, column_count, loc_str);
+    get_string_in_cell(line->value, clm, file, loc_str);
 
     // pokud retezec neni cislo, tak to vyhodi chybovou hlasku
     if (!is_number(loc_str))
-        return EXCEPTION_NOT_A_NUMBER;
+    {
+        return errors(ERR_NOTNUM);
+    }
 
     // prevede cislo na retezec a vlozi ho do bunky
     sprintf(loc_str, "%d", atoi(loc_str));
-    cset(str_in, column, delim, column_count, loc_str, str_out);
+    cset(line, clm, file, loc_str);
     return 0;
 }
 
 /** 
  * Funkce prepise obsah bunky ve col_M hodnotou ze col_N 
  * (zkopiruje obsah bunky col_N do col_M).
- * @param str_in vstupni retezec
+ * @param line struktura line_t obsahujici informace o momentalnim radku
  * @param col_N sloupec, ze ktereho se kopiruje
  * @param col_M sloupec, do ktereho se kopiruje
- * @param delim znak oddelovace
- * @param column_count pocet sloupcu na radku
- * @param str_out vystupni retezec
+ * @param file struktura file_t obsahujici informace o programu a souboru
+
 */
-void copy(char *str_in, int col_N, int col_M,
-          char delim, int column_count, char *str_out)
+void copy(struct line_t *line, int col_N, int col_M,
+          struct file_t file)
 {
     char temp_str[MAX_INPUT_LENGTH];
 
     // nacteni hodnoty ve sloupci N
-    get_string_in_cell(str_in, col_N, delim, column_count, temp_str);
+    get_string_in_cell(line->value, col_N, file, temp_str);
 
     // nastavime novou hodnotu do bunky M
-    cset(str_in, col_M, delim, column_count, temp_str, str_out);
+    cset(line, col_M, file, temp_str);
 }
 
 /** 
  * Funkce vymeni obsahy buneky z col_M a col_N.
- * @param str_in vstupni retezec
+ * @param line struktura line_t obsahujici informace o momentalnim radku
  * @param col_N prvni sloupec
  * @param col_M druhy sloupec
- * @param delim znak oddelovace
- * @param column_count pocet sloupcu na radku
- * @param str_out vystupni retezec
+ * @param file struktura file_t obsahujici informace o programu a souboru
+
 */
-void swap(char *str_in, int col_N, int col_M,
-          char delim, int column_count, char *str_out)
+void swap(struct line_t *line, int col_N, int col_M,
+          struct file_t file)
 {
     char temp_str_M[MAX_INPUT_LENGTH];
     char temp_str_N[MAX_INPUT_LENGTH];
 
     // nacteni hodnoty ve sloupci M do temp_str_M
-    get_string_in_cell(str_in, col_M, delim, column_count, temp_str_M);
+    get_string_in_cell(line->value, col_M, file, temp_str_M);
 
     // nacteni hodnoty ve sloupci N do temp_str_N
-    get_string_in_cell(str_in, col_N, delim, column_count, temp_str_N);
+    get_string_in_cell(line->value, col_N, file, temp_str_N);
 
     // nastavime novou hodnotu do bunky M a N
-    cset(str_in, col_M, delim, column_count, temp_str_N, str_out);
-    cset(str_in, col_N, delim, column_count, temp_str_M, str_out);
+    cset(line, col_M, file, temp_str_N);
+    cset(line, col_N, file, temp_str_M);
 }
 
 /** 
  * Funkce přesune obsah bunky v col_N před col_M.
- * @param str_in vstupni retezec
+ * @param line struktura line_t obsahujici informace o momentalnim radku
  * @param col_N sloupec, ktery se presouva
  * @param col_M sloupec, pred ktery se ma presunout obsah bunky col_N
- * @param delim znak oddelovace
- * @param column_count pocet sloupcu na radku
- * @param str_out vystupni retezec
+ * @param file struktura file_t obsahujici informace o programu a souboru
 */
-void move(char *str_in, int col_N, int col_M,
-          char delim, int column_count, char *str_out)
+void move(struct line_t *line, int col_N, int col_M,
+          struct file_t file)
 {
     /** 
      * pokud je col_N nalevo od col_M
@@ -869,7 +986,7 @@ void move(char *str_in, int col_N, int col_M,
     */
     while (col_N < col_M - 1)
     {
-        swap(str_in, col_N, col_N + 1, delim, column_count, str_in);
+        swap(line, col_N, col_N + 1, file);
         col_N++;
     }
 
@@ -880,28 +997,23 @@ void move(char *str_in, int col_N, int col_M,
     */
     while (col_N > col_M)
     {
-        swap(str_in, col_N, col_N - 1, delim, column_count, str_in);
+        swap(line, col_N, col_N - 1, file);
         col_N--;
     }
-
-    // zkopiruje obsah retezce do str_out
-    strcpy(str_out, str_in);
 }
 
 /** 
  * Funkce do bunky v column_C ulozi soucet hodnot bunek na 
  * stejnem radku ve sloupcích col_N až col_M včetně.
  * Podminky: N <= M, C nesmí patřit do intervalu <N;M>
- * @param str_in vstupni retezec
+ * @param line struktura line_t obsahujici informace o momentalnim radku
  * @param col_C sloupce v radku (pocita se od 1)
  * @param col_N sloupec; dolni hranice intervalu
  * @param col_M sloupec; horni hranice intervalu
- * @param delim znak oddelovace
- * @param column_count pocet sloupcu na radku
- * @param str_to_cmp retezec, na se kterym porovnavame obsah bunky 
+ * @param file struktura file_t obsahujici informace o programu a souboru
 */
-void csum(char *str_in, int col_C, int col_N,
-          int col_M, char delim, int column_count, char *str_out)
+void csum(struct line_t *line, int col_C, int col_N,
+          int col_M, struct file_t file)
 {
     /** TOOD: Error */
     if (is_in_range(col_C, col_N, col_M))
@@ -917,10 +1029,11 @@ void csum(char *str_in, int col_C, int col_N,
     // pokud v nejake bunce nebude cislo, nastane error
     for (int i = col_N; i <= col_M; i++)
     {
-        get_string_in_cell(str_in, i, delim, column_count, loc_str);
+        get_string_in_cell(line->value, i, file, loc_str);
         /** TOOD: Error */
         if (!is_number(loc_str))
         {
+            // ERR_NOTNUM
             printf("Error: not a number.\n");
             return;
         }
@@ -929,12 +1042,22 @@ void csum(char *str_in, int col_C, int col_N,
     }
 
     // prevod na string a ulozeni hodnoty do bunky sloupce col_C
-    sprintf(loc_str, "%f", sum);
-    cset(str_in, col_C, delim, column_count, loc_str, str_out);
+    sprintf(loc_str, "%g", sum);
+    cset(line, col_C, file, loc_str);
 }
 
-void cavr(char *str_in, int col_C, int col_N,
-          int col_M, char delim, int column_count, char *str_out)
+/** 
+ * Funkce do bunky v column_C ulozi aritmeticky prumer hodnot bunek na 
+ * stejnem radku ve sloupcích col_N až col_M včetně.
+ * Podminky: N <= M, C nesmí patřit do intervalu <N;M>
+ * @param line struktura line_t obsahujici informace o momentalnim radku
+ * @param col_C sloupce v radku (pocita se od 1)
+ * @param col_N sloupec; dolni hranice intervalu
+ * @param col_M sloupec; horni hranice intervalu
+ * @param file struktura file_t obsahujici informace o programu a souboru
+*/
+void cavr(struct line_t *line, int col_C, int col_N,
+          int col_M, struct file_t file)
 {
     /** TOOD: Error */
     if (is_in_range(col_C, col_N, col_M))
@@ -950,10 +1073,11 @@ void cavr(char *str_in, int col_C, int col_N,
     // pokud v nejake bunce nebude cislo, nastane error
     for (int i = col_N; i <= col_M; i++)
     {
-        get_string_in_cell(str_in, i, delim, column_count, loc_str);
+        get_string_in_cell(line->value, i, file, loc_str);
         /** TOOD: Error */
         if (!is_number(loc_str))
         {
+            // ERR_NOTNUM
             printf("Error: not a number.\n");
             return;
         }
@@ -962,8 +1086,8 @@ void cavr(char *str_in, int col_C, int col_N,
     }
 
     // prevod na string a ulozeni hodnoty do bunky sloupce col_C
-    sprintf(loc_str, "%f", sum / (col_M - col_N + 1));
-    cset(str_in, col_C, delim, column_count, loc_str, str_out);
+    sprintf(loc_str, "%g", sum / (col_M - col_N + 1));
+    cset(line, col_C, file, loc_str);
 }
 
 /* ---------------------------------------------- */
@@ -972,18 +1096,16 @@ void cavr(char *str_in, int col_C, int col_N,
  * Funkce porovnava, zda retezec v bunce v column 
  * zacina retezcem str_to_cmp
  * @param str_in vstupni retezec
- * @param column sloupce v radku (pocita se od 1)
- * @param delim znak oddelovace
- * @param column_count pocet sloupcu na radku
+ * @param clm sloupce v radku (pocita se od 1)
+ * @param file struktura file_t obsahujici informace o programu a souboru
  * @param str_to_cmp retezec, na se kterym porovnavame obsah bunky
  * @return true pokud retezec v obsahu bunky v column 
  * zacina retezcem str_to_cmp 
 */
-bool begins_with(char *str_in, int column, char delim,
-                 int column_count, char *str_to_cmp)
+bool begins_with(char *str_in, int clm, struct file_t file, char *str_to_cmp)
 {
     char loc_str[MAX_INPUT_LENGTH];
-    get_string_in_cell(str_in, column, delim, column_count, loc_str);
+    get_string_in_cell(str_in, clm, file, loc_str);
 
     // cyklus projizdi retezec str_in a str_to_cmp zaroven
     for (int i = 0; i < (int)strlen(str_to_cmp); i++)
@@ -999,18 +1121,17 @@ bool begins_with(char *str_in, int column, char delim,
  * Funkce kontroluje, zda se retezec str_to_cmp 
  * nachazi v retezci v bunce column.
  * @param str_in vstupni retezec
- * @param column sloupce v radku (pocita se od 1)
- * @param delim znak oddelovace
- * @param column_count pocet sloupcu na radku
+ * @param clm sloupce v radku (pocita se od 1)
+ * @param file struktura file_t obsahujici informace o programu a souboru
  * @param str_to_cmp retezec, na se kterym porovnavame obsah bunky
  * @return true pokud retezec v obsahu bunky v column nachazi 
 */
-bool contains(char *str_in, int column,
-              char delim, int column_count, char *str_to_cmp)
+bool contains(char *str_in, int clm,
+              struct file_t file, char *str_to_cmp)
 {
     // nacita obsah bunky do promenne
     char loc_str[MAX_INPUT_LENGTH];
-    get_string_in_cell(str_in, column, delim, column_count, loc_str);
+    get_string_in_cell(str_in, clm, file, loc_str);
 
     int j = 0;
     int len = (int)strlen(str_to_cmp);
