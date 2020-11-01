@@ -4,18 +4,18 @@
 #include <stdlib.h>
 #include <ctype.h>
 
-#define MAX_INPUT_LENGTH 10240
-#define MAX_STR_LENGTH 100
+#define MAX_INPUT_LENGTH 10241
+#define MAX_STR_LENGTH 101
 #define TILL_END __INT32_MAX__
 #define DEFAULT_DELIM ' '
 #define FLOATING_POINT_CHAR '.'
 
 char temp[MAX_INPUT_LENGTH];
-char *commands[] = {"cset", "tolower", "toupper", "round", "int",
-                   "copy", "swap", "move", "csum", "cavg",
-                   "cmin", "cmax", "ccount", "cseq", "rseq",
-                   "rsum", "ravg", "rmin", "rmax", "rcount"};
 /* ---- Osetreni chyb ------ */
+
+/** 
+ * Vyctovy typ Error s vypisem moznych chyb
+*/
 enum Error
 {
     ERR_FEMPTY = 1,
@@ -30,43 +30,62 @@ enum Error
 
 /* ---- Struktury ---------- */
 
+/** 
+ * Tato struktura uklada hlavni informace o tabulkovem souboru.
+ * znak oddelovace, pocet radku a sloupcu
+*/
 typedef struct file_t
 {
-    char list_of_delims[MAX_STR_LENGTH];
-    char file_delim;
-    char out_delim;
-    int clm_count;
-    int row_count;
+    char list_of_delims[MAX_STR_LENGTH]; // mnozina moznych znaku oddelovacu
+    char file_delim;                     // znak oddelovace, ktery se nachazi v souboru
+    char out_delim;                      // znak oddelovace, ktery se ma objevit ve vyslednem souboru
+    int clm_count;                       // pocet sloupcu v souboru (podle prvniho radku)
+    int row_count;                       // momentalni pocet radku
 } File;
 
+/** 
+ * Tato struktura uklada informace o nactenem radku.
+*/
 typedef struct line_t
 {
-    char value[MAX_INPUT_LENGTH + 2];
-    int clm_count;
-    bool last_line;
+    char value[MAX_INPUT_LENGTH]; // obsah nacteneho radku ze souboru
+    int clm_count;                // pocet sloupcu na danem radku
+    bool last_line;               // uklada informaci, zda jde o posledni radek souboru
 } Line;
 
+/** 
+ * Tato struktura uklada informace o prikazech zpracovani radku a selekci dat.
+*/
 typedef struct select_t
 {
-    char beginw[MAX_STR_LENGTH];
-    char contain[MAX_STR_LENGTH];
+    char command[8];                  // prikaz, ktery se ma provest
+    char beginw_str[MAX_STR_LENGTH];  // retezec pro prikaz beginswith
+    char contain_str[MAX_STR_LENGTH]; // retezec pro prikaz contains
+    // retezex uklada nedefinovanou hodnotu pro pozdejsi pouziti v prikazu
+    char cmd_str[MAX_STR_LENGTH];
+    // prikazy pro selekci sloupci v prikazech beginswith a contains
     int begin_clm, contain_clm;
+    // promenne ukladaji hodnoty sloupcu pro pozdejsi manipulaci
     int clm_C, clm_N, clm_M;
-    int row_C, row_N, row_M;
+    // promenne ukladaji hodnoty radku pro pozdejsi manipulaci
+    int row_R, row_N, row_M;
 } Select;
 
+/** 
+ * Tato struktura uklada informace o prikazech upravy tabulky.
+*/
 typedef struct edit_t
 {
-    // bool row_commands;
-    char queue_rows[MAX_STR_LENGTH];
-    int last_row_command;
-    // bool clm_commands;
-    char queue_clm[MAX_STR_LENGTH];
-    int last_column_command;
+    int arow;                        // pocet radku, ktere se maji pridat na konec souboru
+    char queue_rows[MAX_STR_LENGTH]; // fronta vsech prikazu pro upravu radku
+    int temp_row;                    // posledni nacteny radek na upravu
+    int acol;                        // pocet sloupcu, ktere se maji pridat na konec radku
+    char queue_clm[MAX_STR_LENGTH];  // fronta vsech prikazu pro upravu sloupcu
+    int temp_column;                 // posledni nacteny sloupce na upravu
 } Edit;
 
 /**
- * Funkce vypise chybovou hlasku 
+ * Funkce vypise chybovou hlasku podle druhu chyby.
 */
 int errors_out(int error_type, File file)
 {
@@ -107,11 +126,23 @@ int errors_out(int error_type, File file)
     return 1;
 }
 
-/* ---- Pomocne funkce ----- */
+/* ---- Set-up funkce -------*/
 
 void init_file(File *file);
 void init_select(Select *sel);
+void init_edit(Edit *edit);
+int load_arguments(int argc, char **argv, Select *sel, Edit *edit, File *file);
+int load_delim(File *file, int argc, char **argv);
+int load_edit_cmd(Edit *edit, int argc, char **argv, int *i, bool *flag);
+int load_one_arg_cmd(Select *sel, int argc, char **argv, int *i, bool *flag);
+int load_two_arg_cmd(Select *sel, int argc, char **argv, int *i, bool *flag);
+int load_three_arg_cmd(Select *sel, int argc, char **argv, int *i, bool *flag);
+int load_rest_cmds(Select *sel, int argc, char **argv, int *i, bool *flag);
+int load_selection_cmd(Select *sel, int argc, char **argv, int *i, bool *flag);
 int load_first_line(Line *line, File *file);
+
+/* ---- Pomocne funkce ----- */
+
 int load_line(Line *line, File *file);
 void push_line(Line line, File file);
 
@@ -133,12 +164,13 @@ void get_cell_info(char *str_in, int clm, File file,
 
 int last_index(char *str);
 bool is_letter(char c);
-bool is_number(char *str_in);
-bool is_number_negative(char *str_in);
+bool is_num(char *str_in);
 int round_number(char *float_number);
 bool in_range(int number, int lower_bound, int upper_bound);
 
-bool in_array();
+void enqueue(Edit *edit, char *cmd, int value);
+void dequeue(char *str);
+void first_item(char *str, char *item_out);
 
 /* ---- Uprava tabulky ----- */
 
@@ -151,17 +183,17 @@ void dcol(Line *line, int clm, File file);
 
 /* ---- Zpracovavani dat --- */
 
-void do_command();
+void do_command(Select sel, Line *line, File file);
 void cset(Line *line, int clm, File file, char *str_to_insert);
 void to_lower(Line *line, int clm, File file);
 void to_upper(Line *line, int clm, File file);
 int round_func(Line *line, int clm, File file);
 int int_func(Line *line, int clm, File file);
-void copy(Line *line, int col_N, int col_M, File file);
-void swap(Line *line, int col_N, int col_M, File file);
-void move(Line *line, int col_N, int col_M, File file);
-void csum(Line *line, int col_C, int col_N, int col_M, File file);
-void cavr(Line *line, int col_C, int col_N, int col_M, File file);
+void copy(Line *line, int clm_N, int clm_M, File file);
+void swap(Line *line, int clm_N, int clm_M, File file);
+void move(Line *line, int clm_N, int clm_M, File file);
+void csum(Line *line, int clm_C, int clm_N, int clm_M, File file);
+void cavg(Line *line, int clm_C, int clm_N, int clm_M, File file);
 
 /* ---- Selekce radku ------ */
 
@@ -178,69 +210,17 @@ int main(int argc, char *argv[])
     File file;
     Line line = {.value = "", .clm_count = 0, .last_line = false};
     Select sel;
-    Edit edit = {.queue_rows = "",
-                 .last_row_command = 0,
-                 .queue_clm = "",
-                 .last_column_command = 0};
+    Edit edit;
     init_file(&file);
     init_select(&sel);
 
     int error = 0;
-    bool arow = false;
-    /** 
-     * TODO:
-     * irow
-     * arow
-     * drow
-     * drows
-     * icol
-     * dcol
-     * cset
-     * to_lower
-     * to_upper
-     * round_func
-     * int_func
-     * copy
-     * swap
-     * move
-     * csum
-     * cavr
-    */
 
-    /* TODO: argumenty*/
-    for (int i = 1; i < argc; i++)
-    {
-        // nastaveni delim
-        if (strcmp(argv[i], "-d") == 0 && argc >= i + 2)
-        {
-            if (strlen(argv[i + 1]) > MAX_STR_LENGTH)
-                return errors_out(ERR_STR_LENGTH_TOO_LONG, file);
-            strcpy(file.list_of_delims, argv[++i]);
-            file.out_delim = file.list_of_delims[0];
-        }
+    // projede argumenty a vraci pripadne chyby
+    if ((error = load_arguments(argc, argv, &sel, &edit, &file)))
+        return errors_out(error, file);
 
-        // nastaveni selekce radku
-        else if (strcmp(argv[i], "beginswith") == 0 && argc >= i + 3)
-        {
-            if ((error = set_beginswith(&sel, argv, &i)))
-                return errors_out(error, file);
-        }
-        else if (strcmp(argv[i], "contains") == 0 && argc >= i + 3)
-        {
-            if ((error = set_contains(&sel, argv, &i)))
-                return errors_out(error, file);
-        }
-
-        else if (strcmp(argv[i], "rows") == 0 && argc >= i + 3)
-        {
-            if ((error = set_rows(&sel, argv, &i)))
-                return errors_out(error, file);
-        }
-
-        else
-            return errors_out(ERR_WRONG_ARGV, file);
-    }
-    (void)edit;
+    // nacte prvni radek souboru a nacte potrebna informace o souboru
     error = load_first_line(&line, &file);
     if (error)
         return errors_out(error, file);
@@ -250,16 +230,15 @@ int main(int argc, char *argv[])
     */
     do
     {
+        // TODO: adding 1 plus 1
+        if ((begins_with(line.value, sel.begin_clm, file, sel.beginw_str) ||
+             contains(line.value, sel.contain_clm, file, sel.contain_str)) &&
+            in_range(file.row_count, sel.row_N, sel.row_M))
+            do_command(sel, &line, file);
         push_line(line, file);
         if ((error = load_line(&line, &file)))
             return errors_out(error, file);
     } while (!line.last_line);
-
-    if (arow)
-    {
-        fputs("\n", stdout);
-        create_newline(&file, false);
-    }
 
     return 0;
 }
@@ -267,8 +246,8 @@ int main(int argc, char *argv[])
 /* --------------------------------------------------- */
 
 /**
- * Funkce inicializuje strukturu file_t.
- * @param file ukazatel na strukturu file_t
+ * Funkce inicializuje datovou strukturu File.
+ * @param file ukazatel na vytvorenou strukturu File
 */
 void init_file(File *file)
 {
@@ -280,22 +259,419 @@ void init_file(File *file)
 }
 
 /**
- * Funkce inicializuje strukturu Select.
- * @param sel ukazatel na strukturu Select
+ * Funkce inicializuje datovou strukturu Select.
+ * @param sel ukazatel na vytvorenou strukturu Select
 */
 void init_select(Select *sel)
 {
-    strcpy(sel->beginw, "");
-    strcpy(sel->contain, "");
+    strcpy(sel->command, "");
+    strcpy(sel->beginw_str, "");
+    strcpy(sel->contain_str, "");
+    strcpy(sel->cmd_str, "");
+
+    sel->clm_C = 0;
+    sel->clm_N = 0;
+    sel->clm_M = 0;
+
+    sel->row_R = 0;
     sel->row_N = 1;
     sel->row_M = TILL_END;
+}
+
+/** 
+ * Funkce inicializuje datovou strukturu Edit
+ * @param edit ukazatel na vytvorenou strukturu Edit
+*/
+void init_edit(Edit *edit)
+{
+    edit->arow = 0;
+    edit->acol = 0;
+    strcpy(edit->queue_rows, "");
+    edit->temp_row = 0;
+    strcpy(edit->queue_clm, "");
+    edit->temp_column = 0;
+}
+
+/** 
+ * Funkce pracuje s argumenty od uzivatel a kontoluje je se vsemi povolenymi prikazy. 
+ * V pripade chyby vraci zpatky nenulove cislo.
+ * Jako prvni kontroluje argumenty delim a nasledne pojizdi cely seznam.
+ * V pripade, ze argument se schoduje s povolenym prikazem, nacte jeho parametry. 
+ * Pokud se argument neshoduje s zadnym nabizenym prikazem, vraci chybove hlaseni.
+ * Prikazy jsou rozdelene do podskupin pro prehlednejsi a lehci operaci.
+ * @param argc pocet argumentu
+ * @param argv ukazatel na zacatek pole znaku
+ * @param sel ukazatel na datovou strukturu Select
+ * @param edit ukazatel na datovou strukturu Edit
+ * @param file ukazatel na datovou strukturu File
+ * @return vraci 0 pro bezchybne zadani argumentu; kladne cislo pro chybove hlaseni
+*/
+int load_arguments(int argc, char **argv, Select *sel, Edit *edit, File *file)
+{
+    int i = 1;
+    int error_state = 0; // Navratova hodnota pro pripad necekaneho vstupu
+
+    // promenna ukazuje, zda se v jednom cyklu zmenila nejaka hodnota
+    bool flag;
+    if (argc < 2) // zadny argument
+        return 0;
+
+    if (!strcmp(argv[1], "-d")) // prvni argument je znak oddelovace
+    {
+        if ((error_state = load_delim(file, argc, argv)))
+            return error_state;
+        i += 2;
+    }
+
+    // prochazeni argumentu a porovnavani s prikazy
+    for (; i < argc; i++)
+    {
+        flag = false;
+
+        if ((error_state = load_edit_cmd(edit, argc, argv, &i, &flag)))
+            break;
+        if (flag)
+            continue;
+
+        if ((error_state = load_selection_cmd(sel, argc, argv, &i, &flag)))
+            break;
+        if (flag)
+            continue;
+
+        if ((error_state = load_rest_cmds(sel, argc, argv, &i, &flag)))
+            break;
+        if (flag)
+            continue;
+
+        if ((error_state = load_three_arg_cmd(sel, argc, argv, &i, &flag)))
+            break;
+        if (flag)
+            continue;
+
+        if ((error_state = load_two_arg_cmd(sel, argc, argv, &i, &flag)))
+            break;
+        if (flag)
+            continue;
+
+        if ((error_state = load_one_arg_cmd(sel, argc, argv, &i, &flag)))
+            break;
+        if (flag)
+            continue;
+
+        // Pokud se argument neshoduje s zadnym ze zadanych
+        // Jedna se o chybnou syntaxi argumentu
+        return ERR_WRONG_ARGV;
+    }
+    return error_state;
+}
+
+/** TESTING
+ * Funkce pracuje s argumenty pro nacteni znaku DELIM. 
+ * @param file ukazatel na datovou strukturu File
+ * @param argc pocet argumentu
+ * @param argc pocet argumentu
+ * @param argv ukazatel na zacatek pole znaku
+ * @return vraci 0 pro bezchybne zadani argumenty; kladne cislo pro chybove hlaseni
+*/
+int load_delim(File *file, int argc, char **argv)
+{
+    if (argc >= 3)
+    {
+        if (strlen(argv[2]) > MAX_STR_LENGTH)
+            return ERR_STR_LENGTH_TOO_LONG;
+
+        strcpy(file->list_of_delims, argv[2]);
+        file->out_delim = file->list_of_delims[0];
+    }
+
+    // V pripade, ze uzivatel zadal -d ale neupresnil mnozinu moznych delim
+    else
+        return ERR_WRONG_ARGV;
+    return 0;
+}
+
+/** 
+ * Funkce nacte prikazy pro zpracovani dat s jednim parametrem z argumentu.
+ * Args: (clm_C).
+ * @param sel ukazatel na datovou strukturu Select
+ * @param argc pocet argumentu
+ * @param argv ukazatel na zacatek pole znaku
+ * @param i index ve for-loopu pro indexaci argv
+ * @param flag v pripade uspesneho nacteni dat zmeni hodnotu na true
+ * @return vraci 0 pro bezchybne zadani argumenty; kladne cislo pro chybove hlaseni
+*/
+int load_one_arg_cmd(Select *sel, int argc, char **argv, int *i, bool *flag)
+{
+    if (argc >= *i + 2)
+    {
+        if (!strcmp(argv[*i], "tolower") ||
+            !strcmp(argv[*i], "toupper") ||
+            !strcmp(argv[*i], "round") ||
+            !strcmp(argv[*i], "int"))
+        {
+            strcpy(sel->command, argv[*i]);
+            if (!is_num(argv[*i + 1]))
+                return ERR_NOTNUM;
+            sel->clm_C = atoi(argv[++(*i)]);
+            *flag = true;
+        }
+    }
+    return 0;
+}
+
+/** 
+ * Funkce nacte prikazy pro zpracovani dat se dvema parametry z argumentu. 
+ * Args: (clm_N, clm_M) nebo (clm_C, str).
+ * @param sel ukazatel na datovou strukturu Select
+ * @param argc pocet argumentu
+ * @param argv ukazatel na zacatek pole znaku
+ * @param i index ve for-loopu pro indexaci argv
+ * @param flag v pripade uspesneho nacteni dat zmeni hodnotu na true
+ * @return vraci 0 pro bezchybne zadani argumenty; kladne cislo pro chybove hlaseni
+*/
+int load_two_arg_cmd(Select *sel, int argc, char **argv, int *i, bool *flag)
+{
+    if (argc >= *i + 3)
+    {
+        if (!strcmp(argv[*i], "copy") ||
+            !strcmp(argv[*i], "swap") ||
+            !strcmp(argv[*i], "move"))
+        {
+            strcpy(sel->command, argv[*i]);
+            if (!is_num(argv[*i + 1]))
+                return ERR_NOTNUM;
+            sel->clm_N = atoi(argv[++(*i)]);
+            if (!is_num(argv[*i + 1]))
+                return ERR_NOTNUM;
+            sel->clm_M = atoi(argv[++(*i)]);
+            *flag = true;
+            return 0;
+        }
+
+        if (!strcmp(argv[*i], "cset"))
+        {
+            strcpy(sel->command, argv[*i]);
+            sel->clm_C = atoi(argv[++(*i)]);
+            strcpy(sel->cmd_str, argv[++(*i)]);
+            *flag = true;
+        }
+    }
+    return 0;
+}
+
+/** 
+ * Funkce nacte prikazy pro zpracovani dat se tremi parametry z argumentu. 
+ * Args: (clm_C, clm_N, clm_M) nebo (clm_C, row_N, row_M).
+ * @param sel ukazatel na datovou strukturu Select
+ * @param argc pocet argumentu
+ * @param argv ukazatel na zacatek pole znaku
+ * @param i index ve for-loopu pro indexaci argv
+ * @param flag v pripade uspesneho nacteni dat zmeni hodnotu na true
+ * @return vraci 0 pro bezchybne zadani argumenty; kladne cislo pro chybove hlaseni
+*/
+int load_three_arg_cmd(Select *sel, int argc, char **argv, int *i, bool *flag)
+{
+    if (argc >= *i + 4)
+    {
+        if (!strcmp(argv[*i], "csum") || !strcmp(argv[*i], "cavg") ||
+            !strcmp(argv[*i], "cmin") || !strcmp(argv[*i], "cmax") ||
+            !strcmp(argv[*i], "ccount"))
+        {
+            strcpy(sel->command, argv[*i]);
+            if (!is_num(argv[*i + 1]) || !is_num(argv[*i + 2]) ||
+                !is_num(argv[*i + 3]))
+                return ERR_NOTNUM;
+            sel->clm_C = atoi(argv[++(*i)]);
+            sel->clm_N = atoi(argv[++(*i)]);
+            sel->clm_M = atoi(argv[++(*i)]);
+            *flag = true;
+            return 0;
+        }
+
+        else if (!strcmp(argv[*i], "rsum") || !strcmp(argv[*i], "ravg") ||
+                 !strcmp(argv[*i], "rmin") || !strcmp(argv[*i], "rmax") ||
+                 !strcmp(argv[*i], "rcount"))
+        {
+            strcpy(sel->command, argv[*i]);
+            if (!is_num(argv[*i + 1]) || !is_num(argv[*i + 2]) ||
+                !is_num(argv[*i + 3]))
+                return ERR_NOTNUM;
+            sel->clm_C = atoi(argv[++(*i)]);
+            sel->row_N = atoi(argv[++(*i)]);
+            sel->row_M = atoi(argv[++(*i)]);
+            *flag = true;
+        }
+    }
+    return 0;
+}
+
+/** 
+ * Funkce zkontroluje posledni specialni prikazy mezi argumenty. 
+ * Prikaz cseq (clm_N, clm_M, int_B); rseq (row_N, row_M, int_B).
+ * @param sel ukazatel na datovou strukturu Select
+ * @param argc pocet argumentu
+ * @param argv ukazatel na zacatek pole znaku
+ * @param i index ve for-loopu pro indexaci argv
+ * @param flag v pripade uspesneho nacteni dat zmeni hodnotu na true
+ * @return vraci 0 pro bezchybne zadani argumenty; kladne cislo pro chybove hlaseni
+*/
+int load_rest_cmds(Select *sel, int argc, char **argv, int *i, bool *flag)
+{
+    if (!strcmp(argv[*i], "cseq") && argc >= *i + 4)
+    {
+        strcpy(sel->command, argv[*i]);
+        if (!is_num(argv[*i + 1]) || !is_num(argv[*i + 2]) ||
+            !is_num(argv[*i + 3]))
+            return ERR_NOTNUM;
+        sel->clm_N = atoi(argv[++(*i)]);
+        sel->clm_M = atoi(argv[++(*i)]);
+        strcpy(sel->cmd_str, argv[++(*i)]);
+        *flag = true;
+    }
+
+    else if (!strcmp(argv[*i], "rseq") && argc >= *i + 5)
+    {
+        strcpy(sel->command, argv[*i]);
+        // kontrola spravneho typu
+        if (!is_num(argv[*i + 1]) || !is_num(argv[*i + 2]) ||
+            !is_num(argv[*i + 3]) ||
+            !(is_num(argv[*i + 4]) || argv[*i + 4][0] == '-'))
+            return ERR_NOTNUM;
+        sel->clm_C = atoi(argv[++(*i)]);
+        sel->row_N = atoi(argv[++(*i)]);
+
+        // reseni pomlcky
+        if (argv[*i + 1][0] == '-')
+        {
+            sel->row_M = TILL_END;
+            (*i)++;
+        }
+        else
+            sel->row_M = atoi(argv[++(*i)]);
+
+        strcpy(sel->cmd_str, argv[++(*i)]);
+        *flag = true;
+    }
+    return 0;
+}
+
+/** 
+ * Funkce projizdi prikazy pro upravu tabulky mezi argumenty. 
+ * Argumenty znacici hodnotu radku/sloupce musi nesmi narusit 
+ * proudost zpracovani souboru.
+ * @param edit ukazatel na datovou strukturu Edit
+ * @param argc pocet argumentu
+ * @param argv ukazatel na zacatek pole znaku
+ * @param i index ve for-loopu pro indexaci argv
+ * @param flag v pripade uspesneho nacteni dat zmeni hodnotu na true
+ * @return vraci 0 pro bezchybne zadani argumenty; kladne cislo pro chybove hlaseni
+*/
+int load_edit_cmd(Edit *edit, int argc, char **argv, int *i, bool *flag)
+{
+    if (!strcmp(argv[*i], "arow"))
+    {
+        edit->arow++;
+        *flag = true;
+    }
+    else if (!strcmp(argv[*i], "acol"))
+    {
+        edit->acol++;
+        *flag = true;
+    }
+
+    else if (argc >= *i + 3 && is_num(argv[*i + 1]) && is_num(argv[*i + 2]))
+    {
+        int from = atoi(argv[*i + 1]);
+        int to = atoi(argv[*i + 2]);
+
+        if (!strcmp(argv[*i], "drows") || !strcmp(argv[*i], "dcols"))
+        {
+            // kontroluje posloupnost argumentu a moznost proudoveho zpracovani
+            if (from > to ||
+                (from <= edit->temp_row && argv[*i][1] == 'r') ||
+                (from <= edit->temp_column && argv[*i][1] == 'c'))
+                return ERR_WRONG_ARGV;
+
+            for (; from <= to; from++)
+                enqueue(edit, argv[*i], from);
+
+            // nacteni posledniho zapsaneho radku/sloupce
+            if (argv[*i][1] == 'r')
+                edit->temp_row = from - 1;
+            else
+                edit->temp_column = from - 1;
+
+            *i += 2;
+            *flag = true;
+            return 0;
+        }
+    }
+
+    else if (argc >= *i + 2 && is_num(argv[*i + 1]))
+    {
+        if (!strcmp(argv[*i], "irow") || !strcmp(argv[*i], "drow") ||
+            !strcmp(argv[*i], "icol") || !strcmp(argv[*i], "dcol"))
+        {
+            //  moznost proudoveho zpracovani
+            if ((atoi(argv[*i + 1]) <= edit->temp_row && argv[*i][1] == 'r') ||
+                (atoi(argv[*i + 1]) <= edit->temp_column && argv[*i][1] == 'c'))
+                return ERR_WRONG_ARGV;
+
+            // nacteni posledniho zapsaneho radku/sloupce
+            if (argv[*i][1] == 'r')
+                edit->temp_row = atoi(argv[*i + 1]);
+            else
+                edit->temp_column = atoi(argv[*i + 1]);
+
+            enqueue(edit, argv[*i], atoi(argv[++(*i)]));
+            *flag = true;
+        }
+    }
+
+    return 0;
+}
+
+/** 
+ * Funkce projede vsechny prikazy pro selekci radku a bunek. 
+ * Po shode nacte do struktur.
+ * @param sel ukazatel na datovou strukturu Select
+ * @param argc pocet argumentu
+ * @param argv ukazatel na zacatek pole znaku
+ * @param i index ve for-loopu pro indexaci argv
+ * @param flag v pripade uspesneho nacteni dat zmeni hodnotu na true
+ * @return vraci 0 pro bezchybne zadani argumenty; kladne cislo pro chybove hlaseni
+*/
+int load_selection_cmd(Select *sel, int argc, char **argv, int *i, bool *flag)
+{
+    int error;
+    if (!strcmp(argv[*i], "beginswith") && argc >= *i + 3)
+    {
+        if ((error = set_beginswith(sel, argv, i)))
+            return error;
+        *flag = true;
+    }
+    else if (!strcmp(argv[*i], "contains") && argc >= *i + 3)
+    {
+        if ((error = set_contains(sel, argv, i)))
+            return error;
+        *flag = true;
+    }
+
+    else if (!strcmp(argv[*i], "rows") && argc >= *i + 3)
+    {
+        if ((error = set_rows(sel, argv, i)))
+            return error;
+        *flag = true;
+    }
+    return 0;
 }
 
 /** 
  * Funkce nacte prvni radek souboru a 
  * nastavi default hodnoty pro chod programu.
  * @param line struktura line_t obsahujici informace o momentalnim radku
- * @param file strukture file_t obsahujici informace o programu a souboru 
+ * @param file strukture file_t obsahujici informace o programu a souboru
+ * @return vraci 0 pro bezchybne zadani argumenty; kladne cislo pro chybove hlaseni
 */
 int load_first_line(Line *line, File *file)
 {
@@ -312,6 +688,8 @@ int load_first_line(Line *line, File *file)
     file->row_count = 1;
     for (int i = 0; file->list_of_delims[i]; i++)
     {
+        // pokud se na radku objevuje alespon jeden znak oddelovace
+        // program priradi souboru dane hodnoty
         delim_count = get_char_count(line->value, file->list_of_delims[i]);
         if (delim_count != 0)
         {
@@ -331,6 +709,7 @@ int load_first_line(Line *line, File *file)
  * Funkce nacte do retezce line nasledujici radek ze souboru.
  * @param line struktura line_t obsahujici informace o momentalnim radku
  * @param file strukture file_t obsahujici informace o programu a souboru 
+ * @return vraci 0 pro bezchybne zadani argumenty; kladne cislo pro chybove hlaseni
 */
 int load_line(Line *line, File *file)
 {
@@ -413,10 +792,7 @@ int indexof(char *str_in, char c, int start_index, int position)
 */
 void ignore_lines(int length, char *str_in)
 {
-    /**
-     * TODO: pridat str_out
-    */
-
+    // TODO: mozne budouci vymazani fce
     int i;
     for (i = 0; fgets(str_in, MAX_INPUT_LENGTH, stdin) != NULL && i < length; i++)
     {
@@ -666,7 +1042,7 @@ bool is_letter(char c)
  * @param str_in vstupni retezec
  * @return true pokud je retezec cislo
 */
-bool is_number(char *str_in)
+bool is_num(char *str_in)
 {
     if (strlen(str_in) == 0)
         return false;
@@ -705,16 +1081,6 @@ bool is_number(char *str_in)
 }
 
 /** 
- * Funkce zjisti, jestli muze byt retezec zaporne cislo
- * @param str_in vstupni retezec
- * @return true pokud by retezec mohl byt cislo zaporne
-*/
-bool is_number_negative(char *str_in)
-{
-    return str_in[0] == '-';
-}
-
-/** 
  * Funkce prevede retezec na cislo a zaokrouhli ho
  * @param number vstupni retezec cisla
 */
@@ -741,9 +1107,47 @@ bool in_range(int number, int lower_bound, int upper_bound)
     return number >= lower_bound && number <= upper_bound;
 }
 
-bool in_array()
+/** 
+ * Funkce pracuje s teoretickou strukturou Queue (fronta). 
+ * Hodnoty, ktere nacte, pridava nakonec retezce.
+ * @param edit ukazatel na datovou strukturu Edit
+ * @param cmd prikaz ktery se ma nacist do struktury (row/col)
+ * @param value hodnota radku nebo sloupce (zalezi na cmd)
+*/
+void enqueue(Edit *edit, char *cmd, int value)
 {
-    // TODO:
+    char loc_str[12];
+    sprintf(loc_str, "%d%c ", value, cmd[0]);
+
+    if (cmd[1] == 'c')
+        strcat(edit->queue_clm, loc_str);
+    else if (cmd[1] == 'r')
+        strcat(edit->queue_rows, loc_str);
+}
+
+/** 
+ * Funkce pracuje s teoretickou strukturou Queue (fronta). 
+ * Queue funguje na bazi FIFO (first in, first out); odebere prvni 
+ * hodnotu z fronty.
+ * @param str retezec reprezentujici frontu (oddeluje se znakem mezery)
+*/
+void dequeue(char *str)
+{
+    // TODO: prototype, testing function
+    int end_index = indexof(str, ' ', 0, 1);
+    remove_str(str, 0, end_index + 1, str);
+}
+
+/** 
+ * Funkce pracuje s teoretickou strukturou Queue (fronta). 
+ * Dava moznost uzivateli se podivat na prvni hodnotu ve fronte bez jejiho odebrani.
+ * @param str retezec reprezentujici frontu (oddeluje se znakem mezery)
+ * @param item_out vraci hodnotu na prvnim miste ve fronte
+*/
+void first_item(char *str, char *item_out)
+{
+    int end_index = indexof(str, ' ', 0, 1);
+    substring(str, 0, end_index, item_out);
 }
 
 /* ---------------------------------- */
@@ -763,26 +1167,25 @@ void irow(File *file)
 }
 
 /** 
- * TODO: UPRAVIT A DODELAT
  * Funkce smaze radek v souboru.  
  * Funkce momentalne prochazi cely soubor.
  * @param row radek, ktery ma byt smazan (row > 0)
 */
 void drow(int row)
 {
-    // TODO: preskoci jeden radek
+    // TODO: prototype function
     ignore_lines(row - 1, temp);
     ignore_lines(TILL_END, temp);
 }
 
 /** 
- * TODO: UPRAVIT A DODELAT
  * Funkce smaze radky od starting_row do ending_row vcetne.
  * @param starting_row pocatek intervalu (prvni radek, ktery se smaze)
  * @param ending_row konec intervalu (posledni radek, ktery se smaze)
 */
 void drows(int starting_row, int ending_row)
 {
+    // TODO: prototype function
     ignore_lines(starting_row - 1, temp);
     for (int i = 0; i <= ending_row - starting_row; i++)
     {
@@ -880,6 +1283,81 @@ void dcol(Line *line, int clm, File file)
 /* ------------------------------------------------------ */
 
 /** 
+ * Funkce provede akci podle nactenych parametru a prikazu ve strukturach.
+ * @param sel ukazatel na datovou strukturu Select
+ * @param edit ukazatel na datovou strukturu Edit
+ * @param file ukazatel na datovou strukturu File
+*/
+void do_command(Select sel, Line *line, File file)
+{
+    // TODO: prototype function
+    if (!sel.command)
+        return;
+
+    if (!strcmp(sel.command, "cset"))
+        cset(line, sel.clm_C, file, sel.cmd_str);
+
+    if (!strcmp(sel.command, "tolower"))
+        to_lower(line, sel.clm_C, file);
+    if (!strcmp(sel.command, "toupper"))
+        to_upper(line, sel.clm_C, file);
+    if (!strcmp(sel.command, "round"))
+        round_func(line, sel.clm_C, file);
+    if (!strcmp(sel.command, "int"))
+        int_func(line, sel.clm_C, file);
+    if (!strcmp(sel.command, "copy"))
+        copy(line, sel.clm_N, sel.clm_M, file);
+    if (!strcmp(sel.command, "swap"))
+        swap(line, sel.clm_N, sel.clm_M, file);
+    if (!strcmp(sel.command, "move"))
+        move(line, sel.clm_N, sel.clm_M, file);
+    if (!strcmp(sel.command, "csum"))
+        csum(line, sel.clm_C, sel.clm_N, sel.clm_M, file);
+    if (!strcmp(sel.command, "cavg"))
+        cavg(line, sel.clm_C, sel.clm_N, sel.clm_M, file);
+    if (!strcmp(sel.command, "cmin"))
+    {
+        //TODO:
+    }
+    if (!strcmp(sel.command, "cmax"))
+    {
+        //TODO:
+    }
+    if (!strcmp(sel.command, "ccount"))
+    {
+        //TODO:
+    }
+    if (!strcmp(sel.command, "cseq"))
+    {
+        //TODO:
+    }
+    if (!strcmp(sel.command, "rseq"))
+    {
+        //TODO:
+    }
+    if (!strcmp(sel.command, "rsum"))
+    {
+        //TODO:
+    }
+    if (!strcmp(sel.command, "ravg"))
+    {
+        //TODO:
+    }
+    if (!strcmp(sel.command, "rmin"))
+    {
+        //TODO:
+    }
+    if (!strcmp(sel.command, "rmax"))
+    {
+        //TODO:
+    }
+    if (!strcmp(sel.command, "rcount"))
+    {
+        //TODO:
+    }
+}
+
+/** 
  * Funkce do bunky column nastavi retezec str_in. 
  * Promenna str_out slouzi jako vystupni retezec pro vytisknuti do souboru.
  * @param line struktura line_t obsahujici informace o momentalnim radku
@@ -891,7 +1369,7 @@ void cset(Line *line, int clm, File file, char *str_to_insert)
 {
     if (strlen(str_to_insert) > 100)
     {
-        /** TODO: Error */
+        // TODO: Error
     }
     // dostane pocatecni index retezce v bunce a jeho delku
     int start_index, len;
@@ -958,7 +1436,7 @@ int round_func(Line *line, int clm, File file)
     get_string_in_cell(line->value, clm, file, loc_str);
 
     // pokud retezec neni cislo, tak to vyhodi chybovou hlasku
-    if (!is_number(loc_str))
+    if (!is_num(loc_str))
     {
         return errors_out(ERR_NOTNUM, file);
     }
@@ -987,7 +1465,7 @@ int int_func(Line *line, int clm, File file)
     get_string_in_cell(line->value, clm, file, loc_str);
 
     // pokud retezec neni cislo, tak to vyhodi chybovou hlasku
-    if (!is_number(loc_str))
+    if (!is_num(loc_str))
     {
         return errors_out(ERR_NOTNUM, file);
     }
@@ -999,99 +1477,99 @@ int int_func(Line *line, int clm, File file)
 }
 
 /** 
- * Funkce prepise obsah bunky ve col_M hodnotou ze col_N 
- * (zkopiruje obsah bunky col_N do col_M).
+ * Funkce prepise obsah bunky ve clm_M hodnotou ze clm_N 
+ * (zkopiruje obsah bunky clm_N do clm_M).
  * @param line struktura line_t obsahujici informace o momentalnim radku
- * @param col_N sloupec, ze ktereho se kopiruje
- * @param col_M sloupec, do ktereho se kopiruje
+ * @param clm_N sloupec, ze ktereho se kopiruje
+ * @param clm_M sloupec, do ktereho se kopiruje
  * @param file struktura file_t obsahujici informace o programu a souboru
 
 */
-void copy(Line *line, int col_N, int col_M,
+void copy(Line *line, int clm_N, int clm_M,
           File file)
 {
     char temp_str[MAX_INPUT_LENGTH];
 
     // nacteni hodnoty ve sloupci N
-    get_string_in_cell(line->value, col_N, file, temp_str);
+    get_string_in_cell(line->value, clm_N, file, temp_str);
 
     // nastavime novou hodnotu do bunky M
-    cset(line, col_M, file, temp_str);
+    cset(line, clm_M, file, temp_str);
 }
 
 /** 
- * Funkce vymeni obsahy buneky z col_M a col_N.
+ * Funkce vymeni obsahy buneky z clm_M a clm_N.
  * @param line struktura line_t obsahujici informace o momentalnim radku
- * @param col_N prvni sloupec
- * @param col_M druhy sloupec
+ * @param clm_N prvni sloupec
+ * @param clm_M druhy sloupec
  * @param file struktura file_t obsahujici informace o programu a souboru
 
 */
-void swap(Line *line, int col_N, int col_M,
+void swap(Line *line, int clm_N, int clm_M,
           File file)
 {
     char temp_str_M[MAX_INPUT_LENGTH];
     char temp_str_N[MAX_INPUT_LENGTH];
 
     // nacteni hodnoty ve sloupci M do temp_str_M
-    get_string_in_cell(line->value, col_M, file, temp_str_M);
+    get_string_in_cell(line->value, clm_M, file, temp_str_M);
 
     // nacteni hodnoty ve sloupci N do temp_str_N
-    get_string_in_cell(line->value, col_N, file, temp_str_N);
+    get_string_in_cell(line->value, clm_N, file, temp_str_N);
 
     // nastavime novou hodnotu do bunky M a N
-    cset(line, col_M, file, temp_str_N);
-    cset(line, col_N, file, temp_str_M);
+    cset(line, clm_M, file, temp_str_N);
+    cset(line, clm_N, file, temp_str_M);
 }
 
 /** 
- * Funkce přesune obsah bunky v col_N před col_M.
+ * Funkce přesune obsah bunky v clm_N před clm_M.
  * @param line struktura line_t obsahujici informace o momentalnim radku
- * @param col_N sloupec, ktery se presouva
- * @param col_M sloupec, pred ktery se ma presunout obsah bunky col_N
+ * @param clm_N sloupec, ktery se presouva
+ * @param clm_M sloupec, pred ktery se ma presunout obsah bunky clm_N
  * @param file struktura file_t obsahujici informace o programu a souboru
 */
-void move(Line *line, int col_N, int col_M,
+void move(Line *line, int clm_N, int clm_M,
           File file)
 {
     /** 
-     * pokud je col_N nalevo od col_M
-     * col_N se prohazuje s pravou bunkou
-     * dokud nebude hned vedle col_M
+     * pokud je clm_N nalevo od clm_M
+     * clm_N se prohazuje s pravou bunkou
+     * dokud nebude hned vedle clm_M
     */
-    while (col_N < col_M - 1)
+    while (clm_N < clm_M - 1)
     {
-        swap(line, col_N, col_N + 1, file);
-        col_N++;
+        swap(line, clm_N, clm_N + 1, file);
+        clm_N++;
     }
 
     /** 
-     * pokud je col_N napravo od col_M
-     * tak se col_N se prohazuje s levou bunkou
-     * dokud nebude nalevo od col_M (nebo-li pred col_M)
+     * pokud je clm_N napravo od clm_M
+     * tak se clm_N se prohazuje s levou bunkou
+     * dokud nebude nalevo od clm_M (nebo-li pred clm_M)
     */
-    while (col_N > col_M)
+    while (clm_N > clm_M)
     {
-        swap(line, col_N, col_N - 1, file);
-        col_N--;
+        swap(line, clm_N, clm_N - 1, file);
+        clm_N--;
     }
 }
 
 /** 
  * Funkce do bunky v column_C ulozi soucet hodnot bunek na 
- * stejnem radku ve sloupcích col_N až col_M včetně.
+ * stejnem radku ve sloupcích clm_N až clm_M včetně.
  * Podminky: N <= M, C nesmí patřit do intervalu <N;M>
  * @param line struktura line_t obsahujici informace o momentalnim radku
- * @param col_C sloupce v radku (pocita se od 1)
- * @param col_N sloupec; dolni hranice intervalu
- * @param col_M sloupec; horni hranice intervalu
+ * @param clm_C sloupce v radku (pocita se od 1)
+ * @param clm_N sloupec; dolni hranice intervalu
+ * @param clm_M sloupec; horni hranice intervalu
  * @param file struktura file_t obsahujici informace o programu a souboru
 */
-void csum(Line *line, int col_C, int col_N,
-          int col_M, File file)
+void csum(Line *line, int clm_C, int clm_N,
+          int clm_M, File file)
 {
     /** TOOD: Error */
-    if (in_range(col_C, col_N, col_M))
+    if (in_range(clm_C, clm_N, clm_M))
     {
         printf("Error: column C is within the interval.\n");
         return;
@@ -1102,11 +1580,11 @@ void csum(Line *line, int col_C, int col_N,
 
     // prochazeni vsech bunek v intervalu
     // pokud v nejake bunce nebude cislo, nastane error
-    for (int i = col_N; i <= col_M; i++)
+    for (int i = clm_N; i <= clm_M; i++)
     {
         get_string_in_cell(line->value, i, file, loc_str);
         /** TOOD: Error */
-        if (!is_number(loc_str))
+        if (!is_num(loc_str))
         {
             // ERR_NOTNUM
             printf("Error: not a number.\n");
@@ -1116,26 +1594,26 @@ void csum(Line *line, int col_C, int col_N,
         sum += atof(loc_str);
     }
 
-    // prevod na string a ulozeni hodnoty do bunky sloupce col_C
+    // prevod na string a ulozeni hodnoty do bunky sloupce clm_C
     sprintf(loc_str, "%g", sum);
-    cset(line, col_C, file, loc_str);
+    cset(line, clm_C, file, loc_str);
 }
 
 /** 
  * Funkce do bunky v column_C ulozi aritmeticky prumer hodnot bunek na 
- * stejnem radku ve sloupcích col_N až col_M včetně.
+ * stejnem radku ve sloupcích clm_N až clm_M včetně.
  * Podminky: N <= M, C nesmí patřit do intervalu <N;M>
  * @param line struktura line_t obsahujici informace o momentalnim radku
- * @param col_C sloupce v radku (pocita se od 1)
- * @param col_N sloupec; dolni hranice intervalu
- * @param col_M sloupec; horni hranice intervalu
+ * @param clm_C sloupce v radku (pocita se od 1)
+ * @param clm_N sloupec; dolni hranice intervalu
+ * @param clm_M sloupec; horni hranice intervalu
  * @param file struktura file_t obsahujici informace o programu a souboru
 */
-void cavr(Line *line, int col_C, int col_N,
-          int col_M, File file)
+void cavg(Line *line, int clm_C, int clm_N,
+          int clm_M, File file)
 {
     /** TOOD: Error */
-    if (in_range(col_C, col_N, col_M))
+    if (in_range(clm_C, clm_N, clm_M))
     {
         printf("Error: column C is within the interval.\n");
         return;
@@ -1146,11 +1624,11 @@ void cavr(Line *line, int col_C, int col_N,
 
     // prochazeni vsech bunek v intervalu
     // pokud v nejake bunce nebude cislo, nastane error
-    for (int i = col_N; i <= col_M; i++)
+    for (int i = clm_N; i <= clm_M; i++)
     {
         get_string_in_cell(line->value, i, file, loc_str);
         /** TOOD: Error */
-        if (!is_number(loc_str))
+        if (!is_num(loc_str))
         {
             // ERR_NOTNUM
             printf("Error: not a number.\n");
@@ -1160,9 +1638,9 @@ void cavr(Line *line, int col_C, int col_N,
         sum += atof(loc_str);
     }
 
-    // prevod na string a ulozeni hodnoty do bunky sloupce col_C
-    sprintf(loc_str, "%g", sum / (col_M - col_N + 1));
-    cset(line, col_C, file, loc_str);
+    // prevod na string a ulozeni hodnoty do bunky sloupce clm_C
+    sprintf(loc_str, "%g", sum / (clm_M - clm_N + 1));
+    cset(line, clm_C, file, loc_str);
 }
 
 /* ---------------------------------------------- */
@@ -1236,48 +1714,64 @@ bool contains(char *str_in, int clm,
 }
 
 /** 
- * 
+ * Funkce nastavi parametry prikazu beginswith.
+ * @param sel ukazatel na datovou strukturu Select
+ * @param argv ukazatel na zacatek pole znaku
+ * @param index pozice argumentu beginswith v argumentech (od 0)
+* @return vraci 0 pro bezchybne zadani argumenty; kladne cislo pro chybove hlaseni
 */
 int set_beginswith(Select *sel, char **argv, int *index)
 {
-    if (!is_number(argv[*index + 1]))
+    if (!is_num(argv[*index + 1]))
         return ERR_WRONG_ARGV;
     sel->begin_clm = atoi(argv[++(*index)]);
-    strcpy(sel->beginw, argv[++(*index)]);
+    strcpy(sel->beginw_str, argv[++(*index)]);
     return 0;
 }
 
 /** 
- * 
+ * Funkce nastavi parametry prikazu contains
+ * @param sel ukazatel na datovou strukturu Select
+ * @param argv ukazatel na zacatek pole znaku
+ * @param index pozice argumentu contains v argumentech (od 0)
+* @return vraci 0 pro bezchybne zadani argumenty; kladne cislo pro chybove hlaseni
 */
 int set_contains(Select *sel, char **argv, int *index)
 {
-    if (!is_number(argv[*index + 1]))
+    if (!is_num(argv[*index + 1]))
         return ERR_WRONG_ARGV;
     sel->contain_clm = atoi(argv[++(*index)]);
-    strcpy(sel->contain, argv[++(*index)]);
+    strcpy(sel->contain_str, argv[++(*index)]);
     return 0;
 }
 
 /** 
- * 
+ * Funkce nastavi parametry prikazu rows
+ * @param sel ukazatel na datovou strukturu Select
+ * @param argv ukazatel na zacatek pole znaku
+ * @param index pozice argumentu rows v argumentech (od 0)
+* @return vraci 0 pro bezchybne zadani argumenty; kladne cislo pro chybove hlaseni
 */
 int set_rows(Select *sel, char **argv, int *index)
 {
-    if (!is_number(argv[*index + 1]) && argv[*index + 1][0] != '-')
+    if (!is_num(argv[*index + 1]) && argv[*index + 1][0] != '-')
         return ERR_WRONG_ARGV;
     else if (argv[*index + 1][0] == '-')
+    {
         sel->row_N = TILL_END;
+        (*index)++;
+    }
     else
         sel->row_N = atoi(argv[++(*index)]);
 
-    if (!is_number(argv[*index + 1]) && argv[*index + 1][0] != '-')
+    if (!is_num(argv[*index + 1]) && argv[*index + 1][0] != '-')
         return ERR_WRONG_ARGV;
     else if (argv[*index + 1][0] == '-')
+    {
         sel->row_M = TILL_END;
-    else if (atoi(argv[(*index) + 1]) >= sel->row_N)
-        sel->row_M = atoi(argv[++(*index)]);
+        (*index)++;
+    }
     else
-        return ERR_WRONG_ARGV;
+        sel->row_M = atoi(argv[++(*index)]);
     return 0;
 }
