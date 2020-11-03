@@ -67,6 +67,7 @@ typedef struct select_t
     int begin_clm, contain_clm;
     // promenne ukladaji hodnoty sloupcu pro pozdejsi manipulaci
     int clm_C, clm_N, clm_M;
+    // TODO: vyresit prednost mezi prikazy typu 'r' a prikazu rows
     // promenne ukladaji hodnoty radku pro pozdejsi manipulaci
     int row_R, row_N, row_M;
 } Select;
@@ -149,7 +150,7 @@ void push_line(Line line, File file);
 int indexof(char *str_in, char c, int start_index, int position);
 void ignore_lines(int length, char *str_in);
 int get_char_count(char *str_in, char c);
-void create_newline(File *file, bool newline);
+void create_newline(File *file, bool newline, char *str_out);
 void insert_str(char *str_in, int start_index,
                 char *str_to_insert, char *str_out);
 void remove_str(char *str_in, int start_index, int length, char *str_out);
@@ -159,7 +160,7 @@ void substring(char *str_in, int start_index, int len, char *str_out);
 
 void get_string_in_cell(char *str_in, int clm,
                         File file, char *str_out);
-void get_cell_info(char *str_in, int clm, File file,
+void get_cell_info(char *str_in, int clm, char file_delim, int clm_count,
                    int *pstart_index, int *plen_out);
 
 int last_index(char *str);
@@ -170,16 +171,18 @@ bool in_range(int number, int lower_bound, int upper_bound);
 
 void enqueue(Edit *edit, char *cmd, int value);
 void dequeue(char *str);
-void first_item(char *str, char *item_out);
+void peek(char *str, char *item_out);
 
 /* ---- Uprava tabulky ----- */
 
-void irow(File *file);
-void arow(File file);
+bool edit_rows(File *file, Edit *edit);
+void edit_clms(char *queue_clm, int acol, char *line_value, File *file);
+void irow(File *file, Edit edit);
+void arow(File *file, int num_of_rows);
 void drow(int row);
 void drows(int starting_row, int ending_row);
-void icol(Line *line, int clm, File file);
-void dcol(Line *line, int clm, File file);
+void icol(char *line_value, int clm, char file_delim, int *clm_count);
+void dcol(char *line_value, int clm, char file_delim, int *clm_count);
 
 /* ---- Zpracovavani dat --- */
 
@@ -207,14 +210,14 @@ int set_rows(Select *sel, char **argv, int *index);
 
 int main(int argc, char *argv[])
 {
+    int error = 0; // promenna uchovava indexy chybovych hlaseni
     File file;
-    Line line = {.value = "", .clm_count = 0, .last_line = false};
     Select sel;
     Edit edit;
+    Line line = {.value = "", .clm_count = 0, .last_line = false};
     init_file(&file);
     init_select(&sel);
-
-    int error = 0;
+    init_edit(&edit);
 
     // projede argumenty a vraci pripadne chyby
     if ((error = load_arguments(argc, argv, &sel, &edit, &file)))
@@ -230,15 +233,50 @@ int main(int argc, char *argv[])
     */
     do
     {
-        // TODO: adding 1 plus 1
-        if ((begins_with(line.value, sel.begin_clm, file, sel.beginw_str) ||
-             contains(line.value, sel.contain_clm, file, sel.contain_str)) &&
+        // posledni radek nema znak \n; upravime hodnotu posledniho radku
+        // dulezite pro pro prikazy, ktere pouzivaji znak pomlcky
+        // jako znak posledniho radku
+        if (indexof(line.value, '\n', last_index(line.value) - 1, 1) == -1)
+        {
+            // ignoruje, pokud se nenastavil znak posledniho radku
+            sel.row_N = sel.row_N == TILL_END ? file.row_count : sel.row_N;
+            sel.row_M = sel.row_M == TILL_END ? file.row_count : sel.row_M;
+        }
+
+        // edit pro irow
+        if (edit.queue_rows[0] != '\0')
+        {
+            // kontrola pokud je command typu 'd' (delete)
+            // nacte novy radek a preskoci cyklus
+            if (edit_rows(&file, &edit))
+            {
+                if ((error = load_line(&line, &file)))
+                    return errors_out(error, file);
+                continue;
+            }
+        }
+
+        // zpracovani dat
+        if (begins_with(line.value, sel.begin_clm, file, sel.beginw_str) &&
+            contains(line.value, sel.contain_clm, file, sel.contain_str) &&
             in_range(file.row_count, sel.row_N, sel.row_M))
             do_command(sel, &line, file);
+
+        // uprava icol
+        if (edit.queue_clm[0] != '\0')
+            edit_clms(edit.queue_clm, edit.acol, line.value, &file);
+
+        // zapis do souboru
         push_line(line, file);
+
+        // cteni ze souboru
         if ((error = load_line(&line, &file)))
             return errors_out(error, file);
     } while (!line.last_line);
+
+    // pridani radku na konec
+    if (edit.arow != 0)
+        arow(&file, edit.arow);
 
     return 0;
 }
@@ -324,6 +362,7 @@ int load_arguments(int argc, char **argv, Select *sel, Edit *edit, File *file)
     }
 
     // prochazeni argumentu a porovnavani s prikazy
+    // TODO: otestovat chyby
     for (; i < argc; i++)
     {
         flag = false;
@@ -452,6 +491,8 @@ int load_two_arg_cmd(Select *sel, int argc, char **argv, int *i, bool *flag)
         {
             strcpy(sel->command, argv[*i]);
             sel->clm_C = atoi(argv[++(*i)]);
+            if (strlen(argv[*i + 1]) > 100)
+                return ERR_STR_LENGTH_TOO_LONG;
             strcpy(sel->cmd_str, argv[++(*i)]);
             *flag = true;
         }
@@ -623,7 +664,8 @@ int load_edit_cmd(Edit *edit, int argc, char **argv, int *i, bool *flag)
             else
                 edit->temp_column = atoi(argv[*i + 1]);
 
-            enqueue(edit, argv[*i], atoi(argv[++(*i)]));
+            enqueue(edit, argv[*i], atoi(argv[*i + 1]));
+            (*i)++;
             *flag = true;
         }
     }
@@ -694,8 +736,8 @@ int load_first_line(Line *line, File *file)
         if (delim_count != 0)
         {
             file->file_delim = file->list_of_delims[i];
-            file->clm_count = ++delim_count;
-            line->clm_count = file->clm_count;
+            line->clm_count = ++delim_count;
+            file->clm_count = line->clm_count;
             break;
         }
     }
@@ -781,7 +823,7 @@ int indexof(char *str_in, char c, int start_index, int position)
         }
     }
 
-    return -1; // chybova navratova hodnota
+    return -1; // znak nenalezen
 }
 
 /** 
@@ -823,27 +865,26 @@ int get_char_count(char *str_in, char c)
  * @param file strukture file_t obsahujici informace o programu a souboru 
  * @param newline true, pokud je potreba dat znak '\n' na konci radku
 */
-void create_newline(File *file, bool newline)
+void create_newline(File *file, bool newline, char *str_out)
 {
-    /** 
-     * TODO: mozne budouci pridani str_out
-    */
+    // TODO: upravit dokumentacni komentare
     // delka pole se urcuje podle toho, zda-li ma byt na konci radku znak '\n'
     int array_length = newline ? file->clm_count : file->clm_count - 1;
     char loc_str[array_length];
-    loc_str[array_length] = '\0'; // posledni znak je ukoncovaci znak '\0'
-
+    int i;
     // tvorba noveho radku
-    for (int i = 0; i < file->clm_count - 1; i++)
+    for (i = 0; i < file->clm_count - 1; i++)
     {
         loc_str[i] = file->out_delim;
     }
-
     if (newline)
+    {
         loc_str[array_length - 1] = '\n';
+        i++;
+    }
+    loc_str[i] = '\0'; // posledni znak je ukoncovaci znak '\0'
 
-    file->row_count++;
-    fputs(loc_str, stdout);
+    strcpy(str_out, loc_str);
 }
 
 /** 
@@ -967,14 +1008,15 @@ void insert_str(char *str_in, int start_index, char *str_to_insert, char *str_ou
 void get_string_in_cell(char *str_in, int clm, File file, char *str_out)
 {
     // kontrola preteceni
-    if (clm <= 0 || clm > file.clm_count)
+    // TODO: domyslet chybove hlaseni
+    if (clm > file.clm_count)
     {
         printf("Error: column out of bound!\n");
         return;
     }
 
     int start_index, len;
-    get_cell_info(str_in, clm, file, &start_index, &len);
+    get_cell_info(str_in, clm, file.file_delim, file.clm_count, &start_index, &len);
     substring(str_in, start_index, len, str_out);
 }
 
@@ -987,11 +1029,12 @@ void get_string_in_cell(char *str_in, int clm, File file, char *str_out)
  * @param pstart_index vystupni parametr pro pocatecni index
  * @param plen_out vystupni delka retezce
 */
-void get_cell_info(char *str_in, int clm, File file,
+void get_cell_info(char *str_in, int clm, char file_delim, int clm_count,
                    int *pstart_index, int *plen_out)
 {
     // kontrola preteceni
-    if (clm <= 0 || clm > file.clm_count)
+    // TODO: domyslet chybove hlaseni
+    if (clm > clm_count)
     {
         printf("Error: column out of bound!\n");
         return;
@@ -999,7 +1042,7 @@ void get_cell_info(char *str_in, int clm, File file,
 
     // pocatecni index je prvni index po prvnim oddelovaci
     // vyjimku tvori prvni sloupec, ktery nema pred sebou oddelovac
-    *pstart_index = indexof(str_in, file.file_delim, 0, clm - 1);
+    *pstart_index = indexof(str_in, file_delim, 0, clm - 1);
     if (clm != 1)
         (*pstart_index)++;
 
@@ -1009,8 +1052,8 @@ void get_cell_info(char *str_in, int clm, File file,
      * vyjimku tvori posledni sloupec, ktery nema za sebou oddelovac
      * u posledniho sloupce se provadi kontrola na znak '\n'
     */
-    if (clm < file.clm_count)
-        *plen_out = indexof(str_in, file.file_delim, 0, clm) - *pstart_index;
+    if (clm < clm_count)
+        *plen_out = indexof(str_in, file_delim, 0, clm) - *pstart_index;
     else if (str_in[last_index(str_in)] == '\n')
         *plen_out = (int)strlen(str_in) - *pstart_index - 1;
     else
@@ -1133,6 +1176,8 @@ void enqueue(Edit *edit, char *cmd, int value)
 */
 void dequeue(char *str)
 {
+    if (str[0] == '\0')
+        return;
     // TODO: prototype, testing function
     int end_index = indexof(str, ' ', 0, 1);
     remove_str(str, 0, end_index + 1, str);
@@ -1144,7 +1189,7 @@ void dequeue(char *str)
  * @param str retezec reprezentujici frontu (oddeluje se znakem mezery)
  * @param item_out vraci hodnotu na prvnim miste ve fronte
 */
-void first_item(char *str, char *item_out)
+void peek(char *str, char *item_out)
 {
     int end_index = indexof(str, ' ', 0, 1);
     substring(str, 0, end_index, item_out);
@@ -1152,18 +1197,99 @@ void first_item(char *str, char *item_out)
 
 /* ---------------------------------- */
 
+/** 
+ * TODO: dopsat dokumentacni komentare
+*/
+bool edit_rows(File *file, Edit *edit)
+{
+    char item[12] = ""; // promenna reprezentujici polozku fronty
+    char *cmd;          // znak prikazu pro upravu radku (d/i)
+    int line_number;    // cislo radku, na kterem se maji dit zmeny
+    peek(edit->queue_rows, item);
+    line_number = strtol(item, &cmd, 10); // ziska hodnotu radku z polozky
+
+    if (file->row_count == line_number) // pokud se jedna o momentalni sloupce
+    {
+        if (cmd[0] == 'd')
+        {
+            dequeue(edit->queue_rows);
+            return true;
+        }
+
+        else // cmd[0] == 'i'
+        {
+            irow(file, *edit);
+            dequeue(edit->queue_rows);
+        }
+    }
+    return false;
+}
+
+/** 
+ * TODO: dopsat dokumentacni komentare
+*/
+void edit_clms(char *queue_clm, int acol, char *line_value, File *file)
+{
+    if (queue_clm[0] == '\0')
+        return;
+
+    char item[12] = "";                 // promenna reprezentujici polozku fronty
+    char *cmd;                          // znak prikazu pro upravu sloupce (d/i)
+    int column_number;                  // cislo sloupce, na kterem se maji dit zmeny
+    int clm_count = file->clm_count;    // vstupni pocet sloupcu
+    char copy_of_queue[MAX_STR_LENGTH]; // vytvoreni kopie retezce fronty
+    strcpy(copy_of_queue, queue_clm);
+
+    // vkladani a mazani sloupcu
+    for (int i = 1; i <= file->clm_count; i++)
+    {
+        peek(copy_of_queue, item);
+        column_number = strtol(item, &cmd, 10);
+        if (i == column_number)
+        {
+            if (cmd[0] == 'd')
+                dcol(line_value, i, file->file_delim, &clm_count);
+
+            else // cmd[0] == 'i'
+                icol(line_value, i, file->file_delim, &clm_count);
+        }
+        dequeue(copy_of_queue);
+    }
+
+    // append column
+    for (int i = 1; i <= acol; i++)
+        icol(line_value, clm_count + i, file->file_delim, &clm_count);
+}
+
 /**
  * Funkce prida novy radek. Je mozne pouzit jen create_newline() 
  * @param file struktura file_t obsahujici informace o programu a souboru
 */
-void irow(File *file)
+void irow(File *file, Edit edit)
 {
-    create_newline(file, true);
-    /*
-    pripadne v mainu
-    while (file.row_count >= 3 && file.row_count <= 5)
-        irow(&file);
-    */
+    // TODO: dopsat dokumentacni komentare
+    // nejprve se vytvori novy radek, ktery se upravi podle
+    // prikazu pro upravu sloupcu, pote se zapise do souboru
+    // a vymaze se polozka z fronty
+    char loc_str[MAX_INPUT_LENGTH];
+    create_newline(file, true, loc_str);
+    edit_clms(edit.queue_clm, edit.acol, loc_str, file);
+    fputs(loc_str, stdout);
+}
+
+/** 
+ * TODO: dopsat dokumentacni komentare
+*/
+void arow(File *file, int num_of_rows)
+{
+    fputc('\n', stdout);
+
+    for (int i = 0; i < num_of_rows; i++)
+    {
+        char loc_str[MAX_INPUT_LENGTH];
+        create_newline(file, i != num_of_rows - 1, loc_str);
+        fputs(loc_str, stdout);
+    }
 }
 
 /** 
@@ -1173,7 +1299,7 @@ void irow(File *file)
 */
 void drow(int row)
 {
-    // TODO: prototype function
+    // TODO: kontrola pro smazani fce
     ignore_lines(row - 1, temp);
     ignore_lines(TILL_END, temp);
 }
@@ -1185,7 +1311,7 @@ void drow(int row)
 */
 void drows(int starting_row, int ending_row)
 {
-    // TODO: prototype function
+    // TODO: kontrola pro smazani fce
     ignore_lines(starting_row - 1, temp);
     for (int i = 0; i <= ending_row - starting_row; i++)
     {
@@ -1200,51 +1326,31 @@ void drows(int starting_row, int ending_row)
  * @param clm cislo znaci, pred kolikaty sloupec se ma vlozit novy sloupec
  * @param file struktura file_t obsahujici informace o programu a souboru
 */
-void icol(Line *line, int clm, File file)
+void icol(char *line_value, int clm, char file_delim, int *clm_count)
 {
     char str_to_insert[2]; /* retezec oddelovace */
-    str_to_insert[0] = file.file_delim;
+    str_to_insert[0] = file_delim;
     str_to_insert[1] = '\0';
 
     if (clm == 1) // pokud chce uzivatel pridat novy sloupec pred prvni
-        insert_str(line->value, 0, str_to_insert, line->value);
+        insert_str(line_value, 0, str_to_insert, line_value);
 
-    else if (in_range(clm, 2, file.clm_count))
+    else if (in_range(clm, 2, *clm_count))
     {
         // zacatek nove bunky
-        int starting_index = indexof(line->value, file.file_delim, 0, clm - 1) + 1;
-        insert_str(line->value, starting_index, str_to_insert, line->value);
+        int starting_index = indexof(line_value, file_delim, 0, clm - 1) + 1;
+        insert_str(line_value, starting_index, str_to_insert, line_value);
     }
 
     // pokud chce uzivatel pridat sloupec za posledni sloupec
     // funkce acol
-    else if (clm == file.clm_count + 1)
+    else if (clm == *clm_count + 1)
     {
         int start_index, len;
-        get_cell_info(line->value, file.clm_count, file, &start_index, &len);
-        insert_str(line->value, start_index + len, str_to_insert, line->value);
+        get_cell_info(line_value, clm, file_delim, *clm_count, &start_index, &len);
+        insert_str(line_value, start_index + len, str_to_insert, line_value);
     }
-
-    /** TODO: Error: out of bound */
-    /*
-    while (fgets(temp, MAX_INPUT_LENGTH, stdin) != NULL)
-    {
-        if (clm == 1) // pokud chce uzivatel pridat novy sloupec pred prvni
-            insert_str(temp, 0, str_to_insert, temp);
-
-        // pokud chce uzivatel pridat sloupec za posledni sloupec
-        else if (clm > file.clm_count)
-            insert_str(temp, last_index(temp), str_to_insert, temp);
-
-        else
-        {
-            // zacatek nove bunky
-            int starting_index = indexof(temp, file.file_delim, 0, clm - 1) + 1;
-            insert_str(temp, starting_index, str_to_insert, temp);
-        }
-        // push_line(temp);
-    }
-    */
+    (*clm_count)++;
 }
 
 /** 
@@ -1253,31 +1359,18 @@ void icol(Line *line, int clm, File file)
  * @param clm sloupce v radku (pocita se od 1)
  * @param file struktura file_t obsahujici informace o programu a souboru
 */
-void dcol(Line *line, int clm, File file)
+void dcol(char *line_value, int clm, char file_delim, int *clm_count)
 {
+    // TODO: pridat komentare
     int start_index, len;
-    get_cell_info(line->value, clm, file, &start_index, &len);
+    get_cell_info(line_value, clm, file_delim, *clm_count, &start_index, &len);
 
     // v pripade, ze radek konci '\n' tak se posledni znak posouva o jedno doleva
-    if (clm == file.clm_count)
-        remove_str(line->value, start_index - 1, len + 1, line->value);
+    if (clm == *clm_count)
+        remove_str(line_value, start_index - 1, len + 1, line_value);
     else
-        remove_str(line->value, start_index, len + 1, line->value);
-
-    /** TODO: Error: out of bound */
-    // while (fgets(temp, MAX_INPUT_LENGTH, stdin) != NULL)
-    // {
-    //     int start_index, len;
-    //     get_cell_info(temp, clm, *file, &start_index, &len);
-
-    //     // v pripade, ze radek konci '\n' tak se posledni znak posouva o jedno doleva
-    //     if (clm == file->clm_count)
-    //         remove_str(temp, start_index - 1, len + 1, temp);
-    //     else
-    //         remove_str(temp, start_index, len + 1, temp);
-
-    //     // push_line(temp);
-    // }
+        remove_str(line_value, start_index, len + 1, line_value);
+    (*clm_count)--;
 }
 
 /* ------------------------------------------------------ */
@@ -1369,11 +1462,11 @@ void cset(Line *line, int clm, File file, char *str_to_insert)
 {
     if (strlen(str_to_insert) > 100)
     {
-        // TODO: Error
+        // TODO: dopsat Error (mona vyresene)
     }
     // dostane pocatecni index retezce v bunce a jeho delku
     int start_index, len;
-    get_cell_info(line->value, clm, file, &start_index, &len);
+    get_cell_info(line->value, clm, file.file_delim, file.clm_count, &start_index, &len);
 
     // smaze obsah bunky a vlozi novy obsah
     replace_str(line->value, start_index, len, str_to_insert, line->value);
@@ -1389,7 +1482,7 @@ void to_lower(Line *line, int clm, File file)
 {
     // dostane pocatecni index retezce v bunce a jeho delku
     int start_index, len;
-    get_cell_info(line->value, clm, file, &start_index, &len);
+    get_cell_info(line->value, clm, file.file_delim, file.clm_count, &start_index, &len);
 
     // projede retezec a prevede velka pismena na mala
     for (int i = start_index; i <= len + start_index; i++)
@@ -1408,7 +1501,7 @@ void to_upper(Line *line, int clm, File file)
 {
     // dostane pocatecni index retezce v bunce a jeho delku
     int start_index, len;
-    get_cell_info(line->value, clm, file, &start_index, &len);
+    get_cell_info(line->value, clm, file.file_delim, file.clm_count, &start_index, &len);
 
     // projede retezec a prevede mala pismena na velka
     for (int i = start_index; i <= len + start_index; i++)
@@ -1429,7 +1522,7 @@ int round_func(Line *line, int clm, File file)
 {
     // ulozeni prvniho indexu a delky retezce bunky
     int start_index, len;
-    get_cell_info(line->value, clm, file, &start_index, &len);
+    get_cell_info(line->value, clm, file.file_delim, file.clm_count, &start_index, &len);
 
     // ulozeni obsahu bunky
     char loc_str[MAX_INPUT_LENGTH];
@@ -1458,7 +1551,7 @@ int int_func(Line *line, int clm, File file)
 {
     // ulozeni prvniho indexu a delky retezce bunky
     int start_index, len;
-    get_cell_info(line->value, clm, file, &start_index, &len);
+    get_cell_info(line->value, clm, file.file_delim, file.clm_count, &start_index, &len);
 
     // ulozeni obsahu bunky
     char loc_str[MAX_INPUT_LENGTH];
@@ -1682,6 +1775,8 @@ bool begins_with(char *str_in, int clm, File file, char *str_to_cmp)
 bool contains(char *str_in, int clm,
               File file, char *str_to_cmp)
 {
+    if (str_to_cmp[0] == '\0')
+        return true;
     // nacita obsah bunky do promenne
     char loc_str[MAX_INPUT_LENGTH];
     get_string_in_cell(str_in, clm, file, loc_str);
