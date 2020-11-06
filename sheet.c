@@ -12,7 +12,6 @@
 #define DEFAULT_DELIM ' '
 #define FLOATING_POINT_CHAR '.'
 
-char temp[MAX_INPUT_LENGTH];
 /* ---- Osetreni chyb ------ */
 
 /** 
@@ -111,32 +110,32 @@ typedef struct edit_t
 /**
  * Funkce vypise chybovou hlasku podle druhu chyby.
 */
-int errors_out(int error_type, File file)
+int errors_out(int error_type, const File *file)
 {
     switch (error_type)
     {
     case ERR_FEMPTY:
-        fprintf(stderr, "Error (line %d): The file is empty.\n", file.row_count);
+        fprintf(stderr, "Error (line %d): The file is empty.\n", file->row_count);
         break;
 
     case ERR_INPUT_TOO_LONG:
-        fprintf(stderr, "Error (line %d): length of the line is out of range.\n", file.row_count);
+        fprintf(stderr, "Error (line %d): length of the line is out of range.\n", file->row_count);
         break;
 
     case ERR_STR_LENGTH_TOO_LONG:
-        fprintf(stderr, "Error (line %d): length of the string is out of range.\n", file.row_count);
+        fprintf(stderr, "Error (line %d): length of the string is out of range.\n", file->row_count);
         break;
 
     case ERR_OUT_OF_BOUND:
-        fprintf(stderr, "Error (line %d): index out of bound.\n", file.row_count);
+        fprintf(stderr, "Error (line %d): index out of bound.\n", file->row_count);
         break;
 
     case ERR_NOTNUM:
-        fprintf(stderr, "Error (line %d): input is not a number.\n", file.row_count);
+        fprintf(stderr, "Error (line %d): input is not a number.\n", file->row_count);
         break;
 
     case ERR_WRONG_CCOUNT:
-        fprintf(stderr, "Error (line %d): the number of columns doesn't match the main line.\n", file.row_count);
+        fprintf(stderr, "Error (line %d): the number of columns doesn't match the main line.\n", file->row_count);
         break;
 
     case ERR_WRONG_ARGV:
@@ -144,7 +143,7 @@ int errors_out(int error_type, File file)
         break;
 
     default:
-        fprintf(stderr, "Error (line %d): SEGMENTATION FAULT! CORE PROBABLY DUMPED... Or maybe you r just dumb!\n", file.row_count);
+        fprintf(stderr, "Error (line %d): SEGMENTATION FAULT! CORE PROBABLY DUMPED... Or maybe you r just dumb!\n", file->row_count);
         break;
     }
     return 1;
@@ -169,7 +168,7 @@ int load_first_line(Line *line, File *file);
 /* ---- Pomocne funkce ----- */
 
 int load_line(Line *line, File *file);
-void push_line(char *str_to_push, File file);
+void push_line(char *str_to_push, const File *file);
 
 int indexof(char *str_in, char c, int start_index, int position);
 int get_char_count(char *str_in, char c);
@@ -182,7 +181,7 @@ void replace_str(char *str_in, int start_index,
 void substring(char *str_in, int start_index, int len, char *str_out);
 
 void get_string_in_cell(char *str_in, int clm,
-                        File file, char *str_out);
+                        const File *file, char *str_out);
 void get_cell_info(char *str_in, int clm, char file_delim, int clm_count,
                    int *pstart_index, int *plen_out);
 
@@ -192,7 +191,7 @@ bool is_num(char *str_in);
 int round_number(char *float_number);
 bool in_range(int number, int lower_bound, int upper_bound);
 
-void enqueue(Edit *edit, char *cmd, int cur_value);
+void enqueue(Edit *edit, char *cmd, int value);
 void dequeue(char *str);
 void peek(char *str, char *item_out);
 
@@ -207,32 +206,32 @@ void dcol(char *line_value, int clm, char file_delim, int *clm_count);
 
 /* ---- Zpracovavani dat --- */
 
-void do_command(Select *sel, Line *line, File file);
-void cset(Line *line, int clm, File file, char *str_to_insert);
-void to_lower(Line *line, int clm, File file);
-void to_upper(Line *line, int clm, File file);
-int round_func(Line *line, int clm, File file);
-int int_func(Line *line, int clm, File file);
-void copy(Line *line, int clm_N, int clm_M, File file);
-void swap(Line *line, int clm_N, int clm_M, File file);
-void move(Line *line, int clm_N, int clm_M, File file);
-void csum(Line *line, int clm_C, int clm_N, int clm_M, File file);
-void cavg(Line *line, int clm_C, int clm_N, int clm_M, File file);
-void cmin(Line *line, int clm_C, int clm_N, int clm_M, File file);
-void cmax(Line *line, int clm_C, int clm_N, int clm_M, File file);
-void ccount(Line *line, int clm_C, int clm_N, int clm_M, File file);
-void cseq(Line *line, int clm_N, int clm_M, char *cmd_str, File file);
-void rseq(Line *line, int clm_C, int row_N, int row_M, char *cmd_str, File file);
-void rsum(Line *line, int clm_C, int row_N, int row_M, char *cmd_str, File file);
-void ravg(Line *line, int clm_C, int row_N, int row_M, char *cmd_str, File file);
-void rmin(Line *line, int clm_C, int row_N, int row_M, char *cmd_str, File file);
-void rmax(Line *line, int clm_C, int row_N, int row_M, char *cmd_str, File file);
-void rcount(Line *line, int clm_C, int row_N, int row_M, char *cmd_str, File file);
+void do_command(Select *sel, Line *line, const File *file);
+void cset(Line *line, int clm, const File *file, char *str_to_insert);
+void to_lower(Line *line, int clm, const File *file);
+void to_upper(Line *line, int clm, const File *file);
+int round_func(Line *line, int clm, const File *file);
+int int_func(Line *line, int clm, const File *file);
+void copy(Line *line, int clm_N, int clm_M, const File *file);
+void swap(Line *line, int clm_N, int clm_M, const File *file);
+void move(Line *line, int clm_N, int clm_M, const File *file);
+void csum(Line *line, int clm_C, int clm_N, int clm_M, const File *file);
+void cavg(Line *line, int clm_C, int clm_N, int clm_M, const File *file);
+void cmin(Line *line, int clm_C, int clm_N, int clm_M, const File *file);
+void cmax(Line *line, int clm_C, int clm_N, int clm_M, const File *file);
+void ccount(Line *line, int clm_C, int clm_N, int clm_M, const File *file);
+void cseq(Line *line, int clm_N, int clm_M, char *cmd_str, const File *file);
+void rseq(Line *line, int clm_C, char *cmd_str, const File *file);
+void rsum(Line *line, int clm_C, int row_M, char *cmd_str, const File *file);
+void ravg(Line *line, int clm_C, int row_N, int row_M, char *cmd_str, const File *file);
+void rmin(Line *line, int clm_C, int row_N, int row_M, char *cmd_str, const File *file);
+void rmax(Line *line, int clm_C, int row_N, int row_M, char *cmd_str, const File *file);
+void rcount(Line *line, int clm_C, int row_M, char *cmd_str, const File *file);
 
 /* ---- Selekce radku ------ */
 
-bool begins_with(char *str_in, int clm, File file, char *str_to_cmp);
-bool contains(char *str_in, int clm, File file, char *str_to_cmp);
+bool begins_with(char *str_in, int clm, const File *file, char *str_to_cmp);
+bool contains(char *str_in, int clm, const File *file, char *str_to_cmp);
 int set_beginswith(Select *sel, char **argv, int *index);
 int set_contains(Select *sel, char **argv, int *index);
 int set_rows(Select *sel, char **argv, int *index);
@@ -254,11 +253,11 @@ int main(int argc, char *argv[])
 
     // projede argumenty a vraci pripadne chyby
     if ((error = load_arguments(argc, argv, &sel, &edit, &file)))
-        return errors_out(error, file);
+        return errors_out(error, &file);
 
     // nacte prvni radek souboru a nacte potrebna informace o souboru
     if ((error = load_first_line(&line, &file)))
-        return errors_out(error, file);
+        return errors_out(error, &file);
 
     /**
      * For testing purposes
@@ -283,27 +282,27 @@ int main(int argc, char *argv[])
             if (edit_rows(&file, &edit))
             {
                 if ((error = load_line(&line, &file)))
-                    return errors_out(error, file);
+                    return errors_out(error, &file);
                 continue;
             }
         }
 
         // zpracovani dat
-        if (begins_with(line.cur_value, sel.begin_clm, file, sel.beginw_str) &&
-            contains(line.cur_value, sel.contain_clm, file, sel.contain_str) &&
+        if (begins_with(line.cur_value, sel.begin_clm, &file, sel.beginw_str) &&
+            contains(line.cur_value, sel.contain_clm, &file, sel.contain_str) &&
             in_range(file.row_count, sel.row_N, sel.row_M))
-            do_command(&sel, &line, file);
+            do_command(&sel, &line, &file);
 
         // uprava icol
         if (edit.queue_clm[0] != '\0' || edit.acol != 0)
             edit_clms(edit.queue_clm, edit.acol, line.cur_value, &file);
 
         // zapis do souboru
-        push_line(line.cur_value, file);
+        push_line(line.cur_value, &file);
 
         // cteni ze souboru
         if ((error = load_line(&line, &file)))
-            return errors_out(error, file);
+            return errors_out(error, &file);
     } while (line.cur_value[0] != '\0');
 
     // pridani radku na konec
@@ -820,10 +819,10 @@ int load_line(Line *line, File *file)
 
     if (line->cur_value[0] == '\0')
         return 0;
-    
+
     if (fgets(line->next_value, MAX_INPUT_LENGTH + 2, stdin) == NULL)
         line->next_value[0] = '\0';
-    
+
     line->clm_count = get_char_count(line->cur_value, file->file_delim) + 1;
     file->row_count++;
 
@@ -840,13 +839,13 @@ int load_line(Line *line, File *file)
  * @param str_to_push retezec, ktery se ma zapsat do stdout
  * @param file strukture file_t obsahujici informace o programu a souboru 
 */
-void push_line(char *str_to_push, File file)
+void push_line(char *str_to_push, const File *file)
 {
     // prepisuje vsechny oddelovace na vystupni oddelovac
     int index;
-    if (file.file_delim != file.out_delim)
-        while ((index = indexof(str_to_push, file.file_delim, 0, 1)) != -1)
-            str_to_push[index] = file.out_delim;
+    if (file->file_delim != file->out_delim)
+        while ((index = indexof(str_to_push, file->file_delim, 0, 1)) != -1)
+            str_to_push[index] = file->out_delim;
 
     fputs(str_to_push, stdout);
 }
@@ -923,8 +922,8 @@ void create_newline(File *file, char *str_out)
 
     // if (newline)
     // {
-        loc_str[array_length - 1] = '\n';
-        i++;
+    loc_str[array_length - 1] = '\n';
+    i++;
     // }
     loc_str[i] = '\0'; // posledni znak je ukoncovaci znak '\0'
 
@@ -1049,18 +1048,18 @@ void insert_str(char *str_in, int start_index, char *str_to_insert, char *str_ou
  * @param file ukazatel na datovou strukturu File
  * @param str_out vystupni retezec
 */
-void get_string_in_cell(char *str_in, int clm, File file, char *str_out)
+void get_string_in_cell(char *str_in, int clm, const File *file, char *str_out)
 {
     // kontrola preteceni
     // TODO: domyslet chybove hlaseni
-    if (clm > file.clm_count)
+    if (clm > file->clm_count)
     {
         fprintf(stderr, "Error: column out of bound!\n");
         return;
     }
 
     int start_index, len;
-    get_cell_info(str_in, clm, file.file_delim, file.clm_count, &start_index, &len);
+    get_cell_info(str_in, clm, file->file_delim, file->clm_count, &start_index, &len);
     substring(str_in, start_index, len, str_out);
 }
 
@@ -1202,12 +1201,12 @@ bool in_range(int number, int lower_bound, int upper_bound)
  * Hodnoty, ktere nacte, pridava nakonec retezce.
  * @param edit ukazatel na datovou strukturu Edit
  * @param cmd prikaz ktery se ma nacist do struktury (row/col)
- * @param cur_value hodnota radku nebo sloupce (zalezi na cmd)
+ * @param value hodnota radku nebo sloupce (zalezi na cmd)
 */
-void enqueue(Edit *edit, char *cmd, int cur_value)
+void enqueue(Edit *edit, char *cmd, int value)
 {
     char loc_str[INT_MAX_STR_LEN + 2];
-    sprintf(loc_str, "%d%c ", cur_value, cmd[0]);
+    sprintf(loc_str, "%d%c ", value, cmd[0]);
 
     if (cmd[1] == 'c')
         strcat(edit->queue_clm, loc_str);
@@ -1338,7 +1337,7 @@ void irow(File *file, Edit edit)
 
     // prepise vsechny souborove znaky oddelovani na vystupni oddelovace
     // a zapise do vystupniho souboru
-    push_line(loc_str, *file);
+    push_line(loc_str, file);
 }
 
 /** 
@@ -1422,7 +1421,7 @@ void dcol(char *line_value, int clm, char file_delim, int *clm_count)
  * @param edit ukazatel na datovou strukturu Edit
  * @param file ukazatel na datovou strukturu File
 */
-void do_command(Select *sel, Line *line, File file)
+void do_command(Select *sel, Line *line, const File *file)
 {
     // TODO: prototype function
     if (!sel->command)
@@ -1458,23 +1457,17 @@ void do_command(Select *sel, Line *line, File file)
     if (!strcmp(sel->command, "cseq"))
         cseq(line, sel->clm_N, sel->clm_M, sel->cmd_str, file);
     if (!strcmp(sel->command, "rseq"))
-        rseq(line, sel->clm_C, sel->row_N, sel->row_M, sel->cmd_str, file);
+        rseq(line, sel->clm_C, sel->cmd_str, file);
     if (!strcmp(sel->command, "rsum"))
-        rsum(line, sel->clm_C, sel->row_N, sel->row_M, sel->cmd_str, file);
+        rsum(line, sel->clm_C, sel->row_M, sel->cmd_str, file);
     if (!strcmp(sel->command, "ravg"))
         ravg(line, sel->clm_C, sel->row_N, sel->row_M, sel->cmd_str, file);
     if (!strcmp(sel->command, "rmin"))
-    {
-        //TODO:
-    }
+        rmin(line, sel->clm_C, sel->row_N, sel->row_M, sel->cmd_str, file);
     if (!strcmp(sel->command, "rmax"))
-    {
-        //TODO:
-    }
+        rmax(line, sel->clm_C, sel->row_N, sel->row_M, sel->cmd_str, file);
     if (!strcmp(sel->command, "rcount"))
-    {
-        //TODO:
-    }
+        rcount(line, sel->clm_C, sel->row_M, sel->cmd_str, file);
 }
 
 /** 
@@ -1485,11 +1478,11 @@ void do_command(Select *sel, Line *line, File file)
  * @param file ukazatel na datovou strukturu File
  * @param str_to_insert retezec, ktery bude nastaven v bunce
 */
-void cset(Line *line, int clm, File file, char *str_to_insert)
+void cset(Line *line, int clm, const File *file, char *str_to_insert)
 {
     // dostane pocatecni index retezce v bunce a jeho delku
     int start_index, len;
-    get_cell_info(line->cur_value, clm, file.file_delim, file.clm_count, &start_index, &len);
+    get_cell_info(line->cur_value, clm, file->file_delim, file->clm_count, &start_index, &len);
 
     // smaze obsah bunky a vlozi novy obsah
     replace_str(line->cur_value, start_index, len, str_to_insert, line->cur_value);
@@ -1501,11 +1494,12 @@ void cset(Line *line, int clm, File file, char *str_to_insert)
  * @param clm sloupce v radku (pocita se od 1)
  * @param file ukazatel na datovou strukturu File
 */
-void to_lower(Line *line, int clm, File file)
+void to_lower(Line *line, int clm, const File *file)
 {
     // dostane pocatecni index retezce v bunce a jeho delku
     int start_index, len;
-    get_cell_info(line->cur_value, clm, file.file_delim, file.clm_count, &start_index, &len);
+    get_cell_info(line->cur_value, clm, file->file_delim,
+                  file->clm_count, &start_index, &len);
 
     // projede retezec a prevede velka pismena na mala
     for (int i = start_index; i <= len + start_index; i++)
@@ -1520,11 +1514,11 @@ void to_lower(Line *line, int clm, File file)
  * @param clm sloupce v radku (pocita se od 1)
  * @param file ukazatel na datovou strukturu File
 */
-void to_upper(Line *line, int clm, File file)
+void to_upper(Line *line, int clm, const File *file)
 {
     // dostane pocatecni index retezce v bunce a jeho delku
     int start_index, len;
-    get_cell_info(line->cur_value, clm, file.file_delim, file.clm_count, &start_index, &len);
+    get_cell_info(line->cur_value, clm, file->file_delim, file->clm_count, &start_index, &len);
 
     // projede retezec a prevede mala pismena na velka
     for (int i = start_index; i <= len + start_index; i++)
@@ -1541,11 +1535,11 @@ void to_upper(Line *line, int clm, File file)
  * @param file ukazatel na datovou strukturu File
  * @return pokud nastane chyba tak vraci nenulove cislo
 */
-int round_func(Line *line, int clm, File file)
+int round_func(Line *line, int clm, const File *file)
 {
     // ulozeni prvniho indexu a delky retezce bunky
     int start_index, len;
-    get_cell_info(line->cur_value, clm, file.file_delim, file.clm_count, &start_index, &len);
+    get_cell_info(line->cur_value, clm, file->file_delim, file->clm_count, &start_index, &len);
 
     // ulozeni obsahu bunky
     char loc_str[MAX_INPUT_LENGTH];
@@ -1570,11 +1564,11 @@ int round_func(Line *line, int clm, File file)
  * @param file ukazatel na datovou strukturu File
  * @return pokud nastane chyba tak vraci nenulove cislo
 */
-int int_func(Line *line, int clm, File file)
+int int_func(Line *line, int clm, const File *file)
 {
     // ulozeni prvniho indexu a delky retezce bunky
     int start_index, len;
-    get_cell_info(line->cur_value, clm, file.file_delim, file.clm_count, &start_index, &len);
+    get_cell_info(line->cur_value, clm, file->file_delim, file->clm_count, &start_index, &len);
 
     // ulozeni obsahu bunky
     char loc_str[MAX_INPUT_LENGTH];
@@ -1598,10 +1592,10 @@ int int_func(Line *line, int clm, File file)
  * @param line ukazatel na datovou strukturu Line
  * @param clm_N sloupec, ze ktereho se kopiruje
  * @param clm_M sloupec, do ktereho se kopiruje
- * @param file datova struktura File
+ * @param file ukazatel na datovou strukturu File
 */
 void copy(Line *line, int clm_N, int clm_M,
-          File file)
+          const File *file)
 {
     char temp_str[MAX_INPUT_LENGTH];
 
@@ -1617,10 +1611,10 @@ void copy(Line *line, int clm_N, int clm_M,
  * @param line ukazatel na datovou strukturu Line
  * @param clm_N prvni sloupec
  * @param clm_M druhy sloupec
- * @param file datova struktura File
+ * @param file ukazatel na datovou strukturu File
 */
 void swap(Line *line, int clm_N, int clm_M,
-          File file)
+          const File *file)
 {
     char temp_str_M[MAX_INPUT_LENGTH];
     char temp_str_N[MAX_INPUT_LENGTH];
@@ -1641,10 +1635,10 @@ void swap(Line *line, int clm_N, int clm_M,
  * @param line ukazatel na datovou strukturu Line
  * @param clm_N sloupec, ktery se presouva
  * @param clm_M sloupec, pred ktery se ma presunout obsah bunky clm_N
- * @param file datova struktura File
+ * @param file ukazatel na datovou strukturu File
 */
 void move(Line *line, int clm_N, int clm_M,
-          File file)
+          const File *file)
 {
     /** 
      * pokud je clm_N nalevo od clm_M
@@ -1677,10 +1671,10 @@ void move(Line *line, int clm_N, int clm_M,
  * @param clm_C sloupce v radku (pocita se od 1)
  * @param clm_N sloupec; dolni hranice intervalu
  * @param clm_M sloupec; horni hranice intervalu
- * @param file datova struktura File
+ * @param file ukazatel na datovou strukturu File
 */
 void csum(Line *line, int clm_C, int clm_N,
-          int clm_M, File file)
+          int clm_M, const File *file)
 {
     /** TOOD: Error */
     if (in_range(clm_C, clm_N, clm_M))
@@ -1694,7 +1688,7 @@ void csum(Line *line, int clm_C, int clm_N,
 
     // prochazeni vsech bunek v intervalu
     // pokud v nejake bunce nebude cislo, nastane error
-    for (int i = clm_N; i <= clm_M && i <= file.clm_count; i++)
+    for (int i = clm_N; i <= clm_M && i <= file->clm_count; i++)
     {
         get_string_in_cell(line->cur_value, i, file, loc_str);
         /** TOOD: Error */
@@ -1721,17 +1715,17 @@ void csum(Line *line, int clm_C, int clm_N,
  * @param clm_C sloupce v radku (pocita se od 1)
  * @param clm_N sloupec; dolni hranice intervalu
  * @param clm_M sloupec; horni hranice intervalu
- * @param file datova struktura File
+ * @param file ukazatel na datovou strukturu File
 */
 void cavg(Line *line, int clm_C, int clm_N,
-          int clm_M, File file)
+          int clm_M, const File *file)
 {
     double sum = 0.0;
     char loc_str[MAX_INPUT_LENGTH];
 
     // prochazeni vsech bunek v intervalu
     // pokud v nejake bunce nebude cislo, nastane error
-    for (int i = clm_N; i <= clm_M && i <= file.clm_count; i++)
+    for (int i = clm_N; i <= clm_M && i <= file->clm_count; i++)
     {
         get_string_in_cell(line->cur_value, i, file, loc_str);
         /** TOOD: Error */
@@ -1757,9 +1751,9 @@ void cavg(Line *line, int clm_C, int clm_N,
  * @param clm_C sloupce v radku (pocita se od 1)
  * @param clm_N sloupec; dolni hranice intervalu
  * @param clm_M sloupec; horni hranice intervalu
- * @param file datova struktura File
+ * @param file ukazatel na datovou strukturu File
 */
-void cmin(Line *line, int clm_C, int clm_N, int clm_M, File file)
+void cmin(Line *line, int clm_C, int clm_N, int clm_M, const File *file)
 {
     float min;
     char loc_str[MAX_STR_LENGTH] = ""; // nejaky limit
@@ -1769,7 +1763,7 @@ void cmin(Line *line, int clm_C, int clm_N, int clm_M, File file)
     min = atof(loc_str);
     // TODO: pripadna oprava na string
     // hledani nejnizsiho cisla
-    for (int i = clm_N + 1; i <= clm_M && i <= file.clm_count; i++)
+    for (int i = clm_N + 1; i <= clm_M && i <= file->clm_count; i++)
     {
         // TODO: osetrit chybu NotNum
         get_string_in_cell(line->cur_value, i, file, loc_str);
@@ -1787,9 +1781,9 @@ void cmin(Line *line, int clm_C, int clm_N, int clm_M, File file)
  * @param clm_C sloupce v radku (pocita se od 1)
  * @param clm_N sloupec; dolni hranice intervalu
  * @param clm_M sloupec; horni hranice intervalu
- * @param file datova struktura File
+ * @param file ukazatel na datovou strukturu File
 */
-void cmax(Line *line, int clm_C, int clm_N, int clm_M, File file)
+void cmax(Line *line, int clm_C, int clm_N, int clm_M, const File *file)
 {
     float max;
     char loc_str[MAX_STR_LENGTH];
@@ -1799,7 +1793,7 @@ void cmax(Line *line, int clm_C, int clm_N, int clm_M, File file)
     max = atof(loc_str);
     // TODO: pripadna oprava na string
     // hledani nejvetsiho cisla
-    for (int i = clm_N + 1; i <= clm_M && i <= file.clm_count; i++)
+    for (int i = clm_N + 1; i <= clm_M && i <= file->clm_count; i++)
     {
         // TODO: osetrit chybu NotNum
         get_string_in_cell(line->cur_value, i, file, loc_str);
@@ -1817,13 +1811,13 @@ void cmax(Line *line, int clm_C, int clm_N, int clm_M, File file)
  * @param clm_C sloupce v radku (pocita se od 1)
  * @param clm_N sloupec; dolni hranice intervalu
  * @param clm_M sloupec; horni hranice intervalu
- * @param file datova struktura File
+ * @param file ukazatel na datovou strukturu File
 */
-void ccount(Line *line, int clm_C, int clm_N, int clm_M, File file)
+void ccount(Line *line, int clm_C, int clm_N, int clm_M, const File *file)
 {
     int count = 0;
     char loc_str[MAX_STR_LENGTH];
-    for (int i = clm_N; i <= clm_M && i <= file.clm_count; i++)
+    for (int i = clm_N; i <= clm_M && i <= file->clm_count; i++)
     {
         get_string_in_cell(line->cur_value, i, file, loc_str);
         if (loc_str[0])
@@ -1840,15 +1834,15 @@ void ccount(Line *line, int clm_C, int clm_N, int clm_M, File file)
  * @param clm_N sloupec; dolni hranice intervalu
  * @param clm_M sloupec; horni hranice intervalu
  * @param cmd_str hodnota B ulozena do retezce
- * @param file datova struktura File
+ * @param file ukazatel na datovou strukturu File
 */
-void cseq(Line *line, int clm_N, int clm_M, char *cmd_str, File file)
+void cseq(Line *line, int clm_N, int clm_M, char *cmd_str, const File *file)
 {
     int number = atoi(cmd_str);
     char loc_str[INT_MAX_STR_LEN + 1];
     sprintf(loc_str, "%d", number);
 
-    for (int i = clm_N; i <= clm_M && i <= file.clm_count; i++)
+    for (int i = clm_N; i <= clm_M && i <= file->clm_count; i++)
     {
         cset(line, i, file, loc_str);
         number++;
@@ -1857,121 +1851,206 @@ void cseq(Line *line, int clm_N, int clm_M, char *cmd_str, File file)
 }
 
 /** 
- * Funkce do bunek ve clm_C na radcich od row_N po row_M (vcetne) 
- * vlozi postupne rostouci cisla pocinaje hodnotou B.
+ * Funkce do bunek ve clm_C na radcich od row_N po row_M vcetne 
+ * (vyreseno v main) vlozi postupne rostouci cisla pocinaje hodnotou B.
  * @param line ukazatel na datovou strukturu Line
  * @param clm_C sloupec bunky, do ktereho se zapisuje
- * @param row_N sloupec; dolni hranice intervalu
- * @param row_M sloupec; horni hranice intervalu
  * @param cmd_str hodnota B ulozena do retezce
- * @param file datova struktura File
+ * @param file ukazatel na datovou strukturu File
 */
-void rseq(Line *line, int clm_C, int row_N, int row_M, char *cmd_str, File file)
+void rseq(Line *line, int clm_C, char *cmd_str, const File *file)
 {
     // pokud je cislo radku v intervalu <row_N; row_M>
     // zapise hodnotu cisla do bunky, inkrementuje o jedna
     // a ulozi do cmd_str
-    if (in_range(file.row_count, row_N, row_M))
-    {
-        cset(line, clm_C, file, cmd_str);
-        int number = atoi(cmd_str);
-        number++;
-        sprintf(cmd_str, "%d", number);
-    }
+    // if (in_range(file->row_count, row_N, row_M))
+    cset(line, clm_C, file, cmd_str);
+    int number = atoi(cmd_str);
+    number++;
+    sprintf(cmd_str, "%d", number);
 }
 
 /** 
- * Funkce secte hodnoty ve clm_C od row_N do row_M vcetne 
- * a vyslednou hodnotu zapise do [row_M+1; clm_C].
+ * Funkce secte hodnoty ve clm_C od row_N do row_M-1 vcetne (vyreseno v main)
+ * a vyslednou hodnotu zapise do [row_M; clm_C].
  * @param line ukazatel na datovou strukturu Line
  * @param clm_C sloupec bunky, do ktereho se zapisuje
- * @param row_N sloupec; dolni hranice intervalu
- * @param row_M sloupec; horni hranice intervalu
- * @param cmd_str hodnota B ulozena do retezce
+ * @param row_M radek; horni hranice intervalu (pocita se do row_M-1)
+ * @param cmd_str retezec slouzici k ukladani hodnot
  * @param file datova struktura File
 */
-void rsum(Line *line, int clm_C, int row_N, int row_M, char *cmd_str, File file)
+void rsum(Line *line, int clm_C, int row_M, char *cmd_str, const File *file)
 {
     // inicializace prazdneho retezce
     if (cmd_str[0] == '\0')
         strcpy(cmd_str, "0");
 
     float sum = atof(cmd_str);
-    char loc_str[MAX_STR_LENGTH];
+
+    // zapis do row_M, ktery je o 1 radek vice nez v argumentech
+    if (file->row_count == row_M)
+        cset(line, clm_C, file, cmd_str);
 
     // v argumentech se nacita row_M + 1, aby se zapsalo na nasledujici radek
     // samotny prikaz ale probiha jen do row_M
     // proto musime prakaz ukoncit jiz v row_M - 1
-    if (in_range(file.row_count, row_N, row_M - 1))
+    else
     {
-        get_string_in_cell(line->cur_value, clm_C, file, loc_str);
-        sum += atof(loc_str);
+        get_string_in_cell(line->cur_value, clm_C, file, cmd_str);
+        sum += atof(cmd_str);
         sprintf(cmd_str, "%g", sum);
     }
-
-    // zapis do row_M, ktery je o 1 radek vice nez v argumentech
-    if (file.row_count == row_M)
-        cset(line, clm_C, file, cmd_str);
 }
 
 /** 
  * Funkce spocita aritmeticky prumer hodnot v bunkach v 
- * clm_C na radcich row_N po row_M a hodnotu zapise 
- * do bunky [row_M+1; clm_C].
+ * clm_C na radcich row_N po row_M-1 a hodnotu zapise 
+ * do bunky [row_M; clm_C].
  * @param line ukazatel na datovou strukturu Line
  * @param clm_C sloupec bunky, do ktereho se zapisuje
- * @param row_N sloupec; dolni hranice intervalu
- * @param row_M sloupec; horni hranice intervalu
- * @param cmd_str hodnota B ulozena do retezce
+ * @param row_N radek; dolni hranice intervalu
+ * @param row_M radek; horni hranice intervalu (pocita se do row_M-1)
+ * @param cmd_str retezec slouzici k ukladani hodnot
  * @param file datova struktura File
 */
-void ravg(Line *line, int clm_C, int row_N, int row_M, char *cmd_str, File file)
+void ravg(Line *line, int clm_C, int row_N, int row_M, char *cmd_str, const File *file)
 {
     // inicializace cmd_str
     if (cmd_str[0] == '\0')
         strcpy(cmd_str, "0");
 
+    // TODO: clm out of bound
+
     float avrg = atof(cmd_str);
-    char loc_str[MAX_STR_LENGTH];
 
-    if (in_range(file.row_count, row_N, row_M - 1))
-    {
-        get_string_in_cell(line->cur_value, clm_C, file, loc_str);
-        avrg += atof(loc_str);
-        sprintf(cmd_str, "%g", avrg);
-    }
-
-    if (file.row_count == row_M)
+    // vypis hodnoty na do bunky [row_M; clm_C]
+    if (file->row_count == row_M)
     {
         avrg /= (row_M - row_N);
-        sprintf(loc_str, "%g", avrg);
-        cset(line, clm_C, file, loc_str);
+        sprintf(cmd_str, "%g", avrg);
+        cset(line, clm_C, file, cmd_str);
+    }
+    // scitani hodnot v bunkach clm_C na radcich row_N po row_M-1
+    else
+    {
+        get_string_in_cell(line->cur_value, clm_C, file, cmd_str);
+        avrg += atof(cmd_str);
+        sprintf(cmd_str, "%g", avrg);
     }
 }
 
 /** 
- * 
+ * Funkce hleda v bunkach clm_C na radcich row_N do row_M-1 nejnizsi hodnotu a 
+ * zapise ji do bunky [row_M; clm_C].
+ * @param line ukazatel na datovou strukturu Line
+ * @param clm_C sloupec bunky, do ktereho se zapisuje
+ * @param row_N radek; dolni hranice intervalu
+ * @param row_M radek; horni hranice intervalu (pocita se do row_M-1)
+ * @param cmd_str retezec slouzici k ukladani hodnot
+ * @param file datova struktura File
 */
-// void rmin(Line *line, int clm_C, int row_N, int row_M, char *cmd_str, File file)
-// {
-//     // TODO:
-// }
+void rmin(Line *line, int clm_C, int row_N, int row_M, char *cmd_str, const File *file)
+{
+    // inicializace cmd_str
+    if (cmd_str[0] == '\0')
+        strcpy(cmd_str, "0");
+
+    // TODO: clm out of bound
+
+    float min = atof(cmd_str);
+
+    // nacteni prvniho radku
+    if (file->row_count == row_N)
+    {
+        // TODO: Error NotNum
+        get_string_in_cell(line->cur_value, clm_C, file, cmd_str);
+        min = atof(cmd_str);
+        sprintf(cmd_str, "%g", min);
+    }
+
+    // zapis do bunky [row_M;clm_C]
+    else if (file->row_count == row_M)
+        cset(line, clm_C, file, cmd_str);
+
+    // hledani nejnizsiho cisla ve sloupci clm_C
+    else
+    {
+        get_string_in_cell(line->cur_value, clm_C, file, cmd_str);
+        min = atof(cmd_str) < min ? atof(cmd_str) : min;
+        sprintf(cmd_str, "%g", min);
+    }
+}
 
 /** 
- * 
+ * Funkce hleda v bunkach clm_C na radcich row_N do row_M-1 nejnizsi hodnotu a 
+ * zapise ji do bunky [row_M; clm_C].
+ * @param line ukazatel na datovou strukturu Line
+ * @param clm_C sloupec bunky, do ktereho se zapisuje
+ * @param row_N radek; dolni hranice intervalu
+ * @param row_M radek; horni hranice intervalu (pocita se do row_M-1)
+ * @param cmd_str retezec slouzici k ukladani hodnot
+ * @param file datova struktura File
 */
-// void rmax(Line *line, int clm_C, int row_N, int row_M, char *cmd_str, File file)
-// {
-//     // TODO:
-// }
+void rmax(Line *line, int clm_C, int row_N, int row_M, char *cmd_str, const File *file)
+{
+    // inicializace cmd_str
+    if (cmd_str[0] == '\0')
+        strcpy(cmd_str, "0");
+
+    // TODO: clm out of bound
+
+    float max = atof(cmd_str);
+
+    // nacteni prvniho radku
+    if (file->row_count == row_N)
+    {
+        // TODO: Error NotNum
+        get_string_in_cell(line->cur_value, clm_C, file, cmd_str);
+        max = atof(cmd_str);
+        sprintf(cmd_str, "%g", max);
+    }
+
+    // zapis do bunky [row_M; clm_C]
+    else if (file->row_count == row_M)
+        cset(line, clm_C, file, cmd_str);
+
+    // hledani nejvyssiho cisla ve  sloupci clm_C
+    else
+    {
+        get_string_in_cell(line->cur_value, clm_C, file, cmd_str);
+        max = atof(cmd_str) > max ? atof(cmd_str) : max;
+        sprintf(cmd_str, "%g", max);
+    }
+}
 
 /** 
- * 
+ * Funkce hleda v bunkach clm_C na radcich row_N do row_M-1 
+ * pocet neprazdnych bunek a zapise ji do bunky [row_M; clm_C].
+ * @param line ukazatel na datovou strukturu Line
+ * @param clm_C sloupce v radku (pocita se od 1)
+ * @param row_M radek; horni hranice intervalu (pocita se do row_M-1)
+ * @param cmd_str retezec slouzici na ukladani hodnot
+ * @param file ukazatel na datovou strukturu File
 */
-// void rcount(Line *line, int clm_C, int row_N, int row_M, char *cmd_str, File file)
-// {
-//     // TODO:
-// }
+void rcount(Line *line, int clm_C, int row_M, char *cmd_str, const File *file)
+{
+    // TODO:
+    if (cmd_str[0] == '\0')
+        strcpy(cmd_str, "0");
+
+    // TODO: clm out of bound
+    int count = atoi(cmd_str);
+
+    if (file->row_count == row_M)
+        cset(line, clm_C, file, cmd_str);
+    else
+    {
+        get_string_in_cell(line->cur_value, clm_C, file, cmd_str);
+        if (cmd_str[0] != '\0')
+            count++;
+        sprintf(cmd_str, "%d", count);
+    }
+}
 
 /* ---------------------------------------------- */
 
@@ -1985,7 +2064,7 @@ void ravg(Line *line, int clm_C, int row_N, int row_M, char *cmd_str, File file)
  * @return true pokud retezec v obsahu bunky v column 
  * zacina retezcem str_to_cmp 
 */
-bool begins_with(char *str_in, int clm, File file, char *str_to_cmp)
+bool begins_with(char *str_in, int clm, const File *file, char *str_to_cmp)
 {
     char loc_str[MAX_INPUT_LENGTH];
     get_string_in_cell(str_in, clm, file, loc_str);
@@ -2010,7 +2089,7 @@ bool begins_with(char *str_in, int clm, File file, char *str_to_cmp)
  * @return true pokud retezec v obsahu bunky v column nachazi 
 */
 bool contains(char *str_in, int clm,
-              File file, char *str_to_cmp)
+              const File *file, char *str_to_cmp)
 {
     if (str_to_cmp[0] == '\0')
         return true;
