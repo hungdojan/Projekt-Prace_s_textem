@@ -6,7 +6,7 @@
  * 
  * @author Hung Do
  * @since 13.11.2020
- */ 
+ */
 
 #include <stdio.h>
 #include <string.h>
@@ -332,7 +332,7 @@ int main(int argc, char *argv[])
         }
 
         // proces upravy tabulky a dat
-        if((error = processing_data(&edit, &file, &line, &sel)))
+        if ((error = processing_data(&edit, &file, &line, &sel)))
             return errors_out(error, &file);
 
         // cteni ze souboru
@@ -807,12 +807,12 @@ int load_selection_cmd(Select *sel, int argc, char **argv, int *i, bool *flag)
 */
 int load_first_line(Line *line, File *file)
 {
-    // nacte radek (10240 znaku, jeden byte pro znak noveho radku 
+    // nacte radek (10240 znaku, jeden byte pro znak noveho radku)
     // zkontroluje zda je prazdny
     if (fgets(line->cur_value, MAX_INPUT_LENGTH - 1, stdin) == NULL)
         return ERR_FEMPTY;
 
-    if (indexof(line->cur_value, '\n', (int)strlen(line->cur_value) - 2, 1) == -1)
+    if (indexof(line->cur_value, '\n', (int)strlen(line->cur_value) - 1, 1) == -1)
         return ERR_INPUT_TOO_LONG;
 
     // zkontroluje jaky oddelovac se nachazi v souboru
@@ -835,7 +835,7 @@ int load_first_line(Line *line, File *file)
     }
     file->out_delim = file->list_of_delims[0];
 
-    if ((fgets(line->next_value, MAX_INPUT_LENGTH, stdin) == NULL))
+    if ((fgets(line->next_value, MAX_INPUT_LENGTH - 1, stdin) == NULL))
         line->next_value[0] = '\0';
     return 0;
 }
@@ -857,7 +857,7 @@ int load_line(Line *line, File *file)
     if (line->cur_value[0] == '\0') // jedna se o posledni radek
         return 0;
 
-    if (fgets(line->next_value, MAX_INPUT_LENGTH, stdin) == NULL)
+    if (fgets(line->next_value, MAX_INPUT_LENGTH - 1, stdin) == NULL)
         line->next_value[0] = '\0';
 
     // vypocet sloupcu a prepis znaku oddelovace
@@ -875,7 +875,7 @@ int load_line(Line *line, File *file)
     // kontrola chyb
     if (line->clm_count != file->clm_count)
         return ERR_WRONG_CCOUNT;
-    if (indexof(line->cur_value, '\n', (int)strlen(line->cur_value) - 2, 1) == -1)
+    if (indexof(line->cur_value, '\n', (int)strlen(line->cur_value) - 1, 1) == -1)
         return ERR_INPUT_TOO_LONG;
 
     return 0;
@@ -1155,6 +1155,8 @@ int round_number(char *number)
 
     // pokud je rozdil desetinneho cisla a jeho cele casti
     // vetsi nez 0.5, cislo se zaokrouhli nahoru
+    // if (abs(float_number) - abs(int_number * 1.0) >= 0.5)
+    //     int_number += abs(int_number) / int_number;
     if (float_number - int_number * 1.0 >= 0.5)
         int_number++;
     return int_number;
@@ -1408,7 +1410,8 @@ int do_command(Select *sel, Line *line, const File *file)
 {
     int error = 0;
 
-    if (!sel->command);
+    if (!sel->command)
+        ;
 
     else if (!strcmp(sel->command, "cset"))
         cset(line, sel->clm_C, file, sel->cmd_str);
